@@ -1,0 +1,16 @@
+# Dependências e arquivos gerados
+node_modules/
+dist/
+
+# Arquivos locais de execução
+vite-server.log
+
+# Arquivos de ambiente
+.env
+.env.*
+!.env.example
+
+# Arquivos do sistema e editor
+.DS_Store
+Thumbs.db
+.vscode/
