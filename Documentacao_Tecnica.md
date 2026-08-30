@@ -2,7 +2,7 @@
 
 > Última atualização: 30 de agosto de 2026
 >
-> Status atual: protótipo navegável com infraestrutura de banco e segurança preparada para Supabase/PostgreSQL. A conexão ainda depende da criação e configuração do projeto Supabase.
+> Status atual: protótipo navegável com Supabase conectado para o painel administrativo. O catálogo público permanece demonstrativo até o cadastro e a validação institucional do primeiro conteúdo.
 
 ## 1. Visão geral
 
@@ -48,7 +48,7 @@ Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. A 
 | Detalhe do espécime | `#/fosseis/:slug` | Informações demonstrativas, imagem principal, mini-galeria, atributos, áudio visual e abas de conteúdo. |
 | Sobre o Museu | `#/sobre` | Contexto institucional e apresentação do PaleoMonte. |
 | Acessibilidade | `#/acessibilidade` | Controles demonstrativos para tamanho de texto e alto contraste, além da apresentação dos recursos. |
-| Painel administrativo | `#/admin` | Interface visual para futuras ferramentas de administração. Não possui autenticação nem persistência de dados. |
+| Painel administrativo | `#/admin` | Login Supabase, leitura de papéis e módulos de gestão de espécies, categorias, mídias e QR Codes. |
 
 Exemplo de rota individual atualmente disponível:
 
@@ -69,6 +69,12 @@ Exemplo de rota individual atualmente disponível:
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
 - Painel administrativo de demonstração com métricas e ações rápidas não persistentes.
+- Login administrativo por e-mail e senha via Supabase Auth.
+- Proteção do painel por sessão e papel de acesso.
+- Cadastro, edição e exclusão de espécies para os papéis permitidos.
+- Cadastro de categorias.
+- Envio de mídias para o bucket privado, com vínculo a uma espécie e estado pendente.
+- Registro da rota estável de QR Codes.
 
 ## 5. Conteúdo demonstrativo
 
@@ -154,10 +160,10 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 - Criação do projeto Supabase e aplicação da migration preparada.
 - Preenchimento seguro das variáveis de ambiente do Supabase.
-- Conexão do catálogo React às consultas do Supabase.
-- Painel administrativo funcional.
-- Autenticação de administradores.
-- Interface de upload e gestão de imagens/áudios.
+- Conexão do catálogo React às consultas do Supabase, depois do primeiro conteúdo validado.
+- Aprovação de mídias e escolha de imagem de capa no painel.
+- Geração do arquivo gráfico dos QR Codes.
+- Convite e gestão de usuários pelo painel através de Edge Function segura.
 - Dados científicos validados pelo museu.
 - QR Codes apontando para URLs públicas estáveis.
 - Áudio real ou integração com TTS.
@@ -202,6 +208,16 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Adicionada a biblioteca oficial `@supabase/supabase-js` e o cliente condicional em `src/lib/supabase.js`.
 - Incluídos `.env.example` e instruções de implantação em `supabase/README.md`.
 - A integração não foi ativada porque as credenciais de um projeto Supabase ainda não foram fornecidas.
+- A configuração de ambiente prioriza a chave Publishable atual do Supabase, com compatibilidade para a chave `anon` de projetos legados.
+
+### 2026-08-30 — Painel administrativo conectado
+
+- Conectado o cliente local ao projeto Supabase com variáveis de ambiente não versionadas.
+- Implementados login por e-mail e senha, persistência de sessão e bloqueio de acesso baseado em `user_roles`.
+- Implementados os módulos administrativos iniciais para espécies, categorias, mídias e registros de QR Codes.
+- Mantidos os dados demonstrativos no catálogo público; o banco começa vazio e será abastecido manualmente pelo painel após validação do museu.
+- Mantida a regra de que arquivos enviados ficam pendentes até aprovação de curadoria e exigem os metadados de acessibilidade necessários.
+- Validada a compilação de produção após a integração.
 
 ### Próxima atualização
 

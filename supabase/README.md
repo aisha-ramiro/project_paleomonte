@@ -15,10 +15,10 @@ insert into public.user_roles (user_id, role)
 values ('UUID_DO_USUARIO', 'admin');
 ```
 
-6. Em **Project Settings → API**, copie a URL do projeto e a chave pública/anônima.
+6. Em **Settings → API Keys**, copie a URL do projeto e a chave **Publishable**. Em projetos legados, use a chave `anon`.
 7. Renomeie `.env.example` para `.env.local` e preencha as duas variáveis.
 
-Nunca use nem exponha a chave `service_role` no front-end.
+Nunca use nem exponha chaves `sb_secret_...`, `service_role`, a senha do banco ou a string de conexão do PostgreSQL no front-end.
 
 ## Papéis de acesso
 
