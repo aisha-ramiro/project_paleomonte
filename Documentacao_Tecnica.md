@@ -158,12 +158,9 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 ### Integrações e dados
 
-- Criação do projeto Supabase e aplicação da migration preparada.
-- Preenchimento seguro das variáveis de ambiente do Supabase.
-- Conexão do catálogo React às consultas do Supabase, depois do primeiro conteúdo validado.
 - Aprovação de mídias e escolha de imagem de capa no painel.
 - Geração do arquivo gráfico dos QR Codes.
-- Convite e gestão de usuários pelo painel através de Edge Function segura.
+- Publicação da Edge Function `admin-users` no Supabase para habilitar convites de administradores pelo painel.
 - Dados científicos validados pelo museu.
 - QR Codes apontando para URLs públicas estáveis.
 - Áudio real ou integração com TTS.
@@ -218,6 +215,15 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Mantidos os dados demonstrativos no catálogo público; o banco começa vazio e será abastecido manualmente pelo painel após validação do museu.
 - Mantida a regra de que arquivos enviados ficam pendentes até aprovação de curadoria e exigem os metadados de acessibilidade necessários.
 - Validada a compilação de produção após a integração.
+
+### 2026-08-30 — Catálogo público e gestão administrativa ampliados
+
+- Removido o conjunto de espécies demonstrativas da interface pública.
+- Conectadas home, catálogo e página individual às espécies com status `published` no Supabase.
+- Mantida uma imagem visual temporária enquanto não houver mídias aprovadas para cada espécie.
+- O registro de teste publicado no banco passa a ser a espécie exibida pela aplicação.
+- Adicionadas edição e exclusão de categorias no painel.
+- Adicionada a área de administradores, com convite por e-mail implementado em Edge Function segura e versionada.
 
 ### Próxima atualização
 

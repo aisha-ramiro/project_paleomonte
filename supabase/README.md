@@ -52,3 +52,25 @@ audit_log registra alterações administrativas relevantes.
 - Imagens aprovadas exigem texto alternativo (`alt_text`).
 - Áudios aprovados exigem transcrição (`transcript`).
 - URLs assinadas devem ser geradas em tempo de execução; não devem ser armazenadas no banco de dados.
+
+## Convidar administradores
+
+O painel administrativo possui uma tela para convidar outros administradores, mas essa operação precisa rodar em uma **Edge Function**: criar usuários no Supabase Auth requer uma chave secreta, que jamais pode ser exposta no React.
+
+O código está versionado em `functions/admin-users/index.ts`. Para publicá-lo, instale e autentique a Supabase CLI, vincule o projeto e execute:
+
+```bash
+supabase functions deploy admin-users
+```
+
+Como alternativa para um protótipo, no Dashboard do Supabase abra **Edge Functions → Deploy a new function → Via Editor**, crie uma função chamada `admin-users`, copie o conteúdo do arquivo citado e clique em **Deploy**.
+
+A função:
+
+- valida a sessão do solicitante;
+- exige o papel `admin`;
+- lista os usuários administrativos;
+- envia convite por e-mail para um novo administrador;
+- atribui o papel `admin` ao usuário convidado.
+
+As chaves secretas usadas pela função ficam no ambiente do Supabase. Não adicione nenhuma chave secreta ao `.env.local` do React.

@@ -191,11 +191,26 @@ function SpeciesManager({ roles }) {
 function CategoriesManager() {
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ name: '', slug: '', description: '' });
+  const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const load = async () => { const { data, error: loadError } = await supabase.from('categories').select('*').order('name'); if (loadError) setError(loadError.message); else setCategories(data ?? []); };
   useEffect(() => { load(); }, []);
-  const submit = async (event) => { event.preventDefault(); setError(''); const { error: saveError } = await supabase.from('categories').insert({ name: form.name, slug: form.slug || slugify(form.name), description: form.description || null, created_by: (await supabase.auth.getUser()).data.user.id }); if (saveError) { setError(saveError.message); return; } setForm({ name: '', slug: '', description: '' }); load(); };
-  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Estrutura do acervo</p><h2>Categorias</h2></div></div><div className="manager-split"><form className="admin-form compact-form" onSubmit={submit}><h3>Nova categoria</h3><label>Nome *<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value, slug: slugify(event.target.value) }))} required/></label><label>Slug *<input value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: slugify(event.target.value) }))} required/></label><label>Descrição<textarea rows="4" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}/></label><button className="button green">Salvar categoria</button></form><div className="category-list"><h3>Categorias cadastradas</h3>{categories.length === 0 ? <p>Nenhuma categoria cadastrada.</p> : categories.map((category) => <article key={category.id}><b>{category.name}</b><span>{category.slug}</span><p>{category.description || 'Sem descrição.'}</p></article>)}</div></div>{error && <p className="form-error" role="alert">{error}</p>}</section>;
+  const reset = () => { setForm({ name: '', slug: '', description: '' }); setEditingId(null); setError(''); };
+  const submit = async (event) => {
+    event.preventDefault(); setError(''); setSaving(true);
+    const payload = { name: form.name.trim(), slug: form.slug || slugify(form.name), description: form.description.trim() || null };
+    const query = editingId
+      ? supabase.from('categories').update(payload).eq('id', editingId)
+      : supabase.from('categories').insert({ ...payload, created_by: (await supabase.auth.getUser()).data.user.id });
+    const { error: saveError } = await query;
+    setSaving(false);
+    if (saveError) { setError(saveError.message); return; }
+    reset(); load();
+  };
+  const edit = (category) => { setEditingId(category.id); setForm({ name: category.name, slug: category.slug, description: category.description || '' }); };
+  const remove = async (category) => { if (!window.confirm(`Excluir a categoria “${category.name}”?`)) return; setError(''); const { error: deleteError } = await supabase.from('categories').delete().eq('id', category.id); if (deleteError) { setError(deleteError.message); return; } if (editingId === category.id) reset(); load(); };
+  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Estrutura do acervo</p><h2>Categorias</h2></div></div><div className="manager-split"><form className="admin-form compact-form" onSubmit={submit}><h3>{editingId ? 'Editar categoria' : 'Nova categoria'}</h3><label>Nome *<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value, slug: editingId ? current.slug : slugify(event.target.value) }))} required/></label><label>Slug *<input value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: slugify(event.target.value) }))} required/></label><label>Descrição<textarea rows="4" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}/></label><div className="form-actions"><button className="button green" disabled={saving}>{saving ? 'Salvando...' : editingId ? 'Salvar alterações' : 'Salvar categoria'}</button>{editingId && <button type="button" className="text-button" onClick={reset}>Cancelar</button>}</div></form><div className="category-list"><h3>Categorias cadastradas</h3>{categories.length === 0 ? <p>Nenhuma categoria cadastrada.</p> : categories.map((category) => <article key={category.id}><b>{category.name}</b><span>{category.slug}</span><p>{category.description || 'Sem descrição.'}</p><div><button className="text-button" onClick={() => edit(category)}>Editar</button><button className="text-button danger" onClick={() => remove(category)}>Excluir</button></div></article>)}</div></div>{error && <p className="form-error" role="alert">{error}</p>}</section>;
 }
 
 function MediaManager() {
@@ -239,6 +254,31 @@ function QrCodesManager() {
   return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Identificação física</p><h2>QR Codes</h2></div></div><form className="inline-form" onSubmit={create}><select value={selectedSpecimen} onChange={(event) => setSelectedSpecimen(event.target.value)} required><option value="">Escolha uma espécie</option>{specimens.map((specimen) => <option key={specimen.id} value={specimen.id}>{specimen.scientific_name}</option>)}</select><button className="button green">Registrar QR Code</button></form><p className="helper-text">O registro cria a rota pública estável. A imagem gráfica do QR será adicionada quando o domínio definitivo estiver configurado.</p>{error && <p className="form-error" role="alert">{error}</p>}<div className="qr-list">{qrCodes.length === 0 ? <SectionMessage title="Nenhum QR Code registrado">Cadastre uma espécie antes de registrar o primeiro QR Code.</SectionMessage> : qrCodes.map((qr) => <article key={qr.id}><span>⌘</span><div><b>{qr.specimens?.scientific_name}</b><p>{qr.public_path}</p></div><small>{qr.status} · v{qr.version}</small></article>)}</div></section>;
 }
 
+function UsersManager() {
+  const [users, setUsers] = useState([]);
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const load = async () => {
+    setLoading(true); setError('');
+    const { data, error: invokeError } = await supabase.functions.invoke('admin-users', { body: { action: 'list' } });
+    setLoading(false);
+    if (invokeError || data?.error) { setError(data?.error || invokeError.message); return; }
+    setUsers(data.users ?? []);
+  };
+  useEffect(() => { load(); }, []);
+  const invite = async (event) => {
+    event.preventDefault(); setError(''); setMessage(''); setInviting(true);
+    const { data, error: invokeError } = await supabase.functions.invoke('admin-users', { body: { action: 'invite_admin', email } });
+    setInviting(false);
+    if (invokeError || data?.error) { setError(data?.error || invokeError.message); return; }
+    setMessage(data.message || 'Convite enviado.'); setEmail(''); load();
+  };
+  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Acesso ao sistema</p><h2>Administradores</h2></div></div><div className="manager-split"><form className="admin-form compact-form" onSubmit={invite}><h3>Convidar administrador</h3><p className="helper-text">A pessoa receberá um convite por e-mail e terá acesso administrativo após criar a senha.</p><label>E-mail *<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="nome@exemplo.com"/></label>{error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success">{message}</p>}<button className="button green" disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</button></form><div className="category-list users-list"><h3>Usuários cadastrados</h3>{loading ? <p>Carregando usuários...</p> : users.length === 0 ? <p>Nenhum usuário encontrado.</p> : users.map((user) => <article key={user.id}><b>{user.email}</b><span>{new Intl.DateTimeFormat('pt-BR').format(new Date(user.created_at))}</span><p>{user.roles.length ? user.roles.map((role) => roleLabels[role] ?? role).join(', ') : 'Sem papel atribuído'}</p></article>)}</div></div></section>;
+}
+
 function AdminShell({ session, roles, onSignOut }) {
   const [active, setActive] = useState('Painel');
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
@@ -250,7 +290,7 @@ function AdminShell({ session, roles, onSignOut }) {
   if (active === 'Categorias') content = <CategoriesManager/>;
   if (active === 'Mídias') content = <MediaManager/>;
   if (active === 'QR Codes') content = <QrCodesManager/>;
-  if (active === 'Usuários') content = <SectionMessage title="Usuários e permissões">A consulta de usuários está protegida para administradores. O convite de novos usuários será implementado com uma Edge Function segura na próxima etapa.</SectionMessage>;
+  if (active === 'Usuários') content = <UsersManager/>;
   if (active === 'Configurações') content = <SectionMessage title="Configurações">As configurações institucionais, domínio público e e-mails administrativos serão centralizados aqui.</SectionMessage>;
   return <main className="admin"><aside className="admin-side"><AdminBrand/>{labels.map((label) => <button className={active === label ? 'active' : ''} onClick={() => setActive(label)} key={label}><span>{label === 'Painel' ? '⌂' : '▧'}</span>{label}</button>)}<button className="admin-exit" onClick={onSignOut}><span>↪</span>Sair</button></aside><section className="admin-main"><div className="admin-top"><div><p className="eyebrow">Área administrativa</p><h1>{active}</h1></div><div className="admin-user"><i>{session.user.email?.slice(0, 2).toUpperCase()}</i><span>{session.user.email}<small>{roleLabels[primaryRole] ?? 'Equipe'}</small></span></div></div>{content}{canPublish && <p className="publication-note">Publicações devem conter informações e mídias validadas pelo Museu de Paleontologia.</p>}</section></main>;
 }
