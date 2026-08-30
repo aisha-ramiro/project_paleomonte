@@ -1,8 +1,8 @@
 # Documentação Técnica — PaleoMonte
 
-> Última atualização: 18 de agosto de 2026
+> Última atualização: 30 de agosto de 2026
 >
-> Status atual: protótipo estático navegável, sem integrações externas ou dados científicos definitivos.
+> Status atual: protótipo navegável com infraestrutura de banco e segurança preparada para Supabase/PostgreSQL. A conexão ainda depende da criação e configuração do projeto Supabase.
 
 ## 1. Visão geral
 
@@ -27,6 +27,7 @@ Nesta primeira entrega, foi desenvolvido somente o front-end demonstrativo. Não
 | Navegação | Hash routing nativo | Rotas internas via URLs com `#/`, sem biblioteca adicional de rotas. |
 | Tipografia | Google Fonts — Manrope e DM Sans | Tipografia da interface, carregada no CSS. |
 | Controle de versão | Git + GitHub | Histórico e sincronização do código. |
+| Banco de dados planejado | PostgreSQL via Supabase | Migration relacional, RLS, Storage e auditoria preparados. |
 
 ### Bibliotecas instaladas
 
@@ -34,8 +35,9 @@ Nesta primeira entrega, foi desenvolvido somente o front-end demonstrativo. Não
 - `react-dom`
 - `vite`
 - `@vitejs/plugin-react`
+- `@supabase/supabase-js`
 
-Não foram utilizadas bibliotecas de componentes, CSS, ícones, roteamento, backend ou banco de dados nesta etapa.
+Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. A biblioteca oficial do Supabase foi instalada, mas não é ativada enquanto as variáveis de ambiente não forem preenchidas.
 
 ## 3. Páginas e rotas implementadas
 
@@ -81,8 +83,15 @@ PaleoMonte/
 ├── src/
 │   ├── assets/
 │   │   └── museum-hero.png          # Imagem ilustrativa temporária
+│   ├── lib/
+│   │   └── supabase.js              # Cliente Supabase, ativado por variáveis de ambiente
 │   ├── main.jsx                     # Componentes, páginas, dados demonstrativos e rotas
 │   └── styles.css                   # Estilos visuais e regras responsivas
+├── supabase/
+│   ├── migrations/
+│   │   └── 202608300001_initial_schema.sql  # Banco, RLS, Storage e auditoria
+│   └── README.md                     # Instruções de implantação do Supabase
+├── .env.example                      # Modelo seguro de variáveis de ambiente
 ├── index.html                       # Documento HTML de entrada
 ├── package.json                     # Scripts e dependências do projeto
 ├── package-lock.json                # Versões exatas das dependências
@@ -143,11 +152,12 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 ### Integrações e dados
 
-- API pública de espécimes e categorias.
-- Banco de dados e modelagem definitiva.
+- Criação do projeto Supabase e aplicação da migration preparada.
+- Preenchimento seguro das variáveis de ambiente do Supabase.
+- Conexão do catálogo React às consultas do Supabase.
 - Painel administrativo funcional.
 - Autenticação de administradores.
-- Upload e gestão de imagens.
+- Interface de upload e gestão de imagens/áudios.
 - Dados científicos validados pelo museu.
 - QR Codes apontando para URLs públicas estáveis.
 - Áudio real ou integração com TTS.
@@ -181,6 +191,17 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Criada a imagem ilustrativa temporária para composição visual.
 - Configurado Git e conectado o repositório local ao GitHub.
 - Publicado o primeiro conjunto de commits na branch `main`.
+
+### 2026-08-30 — Infraestrutura Supabase/PostgreSQL preparada
+
+- Adicionada a migration inicial em `supabase/migrations/202608300001_initial_schema.sql`.
+- Modelados perfis, papéis de acesso, espécimes, categorias, referências, mídias, QR Codes e registros de auditoria.
+- Implementadas políticas de segurança RLS com os papéis `admin`, `curator`, `editor`, `contributor` e `viewer`.
+- Configurado o bucket privado `museum-media`, com regras para exibir apenas mídias aprovadas ligadas a espécies publicadas.
+- Incluídos requisitos de acessibilidade de mídia: texto alternativo em imagens e transcrição em áudios aprovados.
+- Adicionada a biblioteca oficial `@supabase/supabase-js` e o cliente condicional em `src/lib/supabase.js`.
+- Incluídos `.env.example` e instruções de implantação em `supabase/README.md`.
+- A integração não foi ativada porque as credenciais de um projeto Supabase ainda não foram fornecidas.
 
 ### Próxima atualização
 
