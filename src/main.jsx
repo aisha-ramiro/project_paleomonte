@@ -39,17 +39,15 @@ function narrationValue(value) {
 
 function specimenNarration(specimen) {
   return [
-    `Nome popular. ${narrationValue(specimen.commonName)}.`,
     `Nome científico. ${narrationValue(specimen.name)}.`,
-    `Tipo. ${narrationValue(specimen.type)}.`,
+    `Nome popular. ${narrationValue(specimen.commonName)}.`,
     `Período geológico. ${narrationValue(specimen.period)}.`,
-    `Era geológica. ${narrationValue(specimen.era)}.`,
     `Local da descoberta. ${narrationValue(specimen.location)}.`,
-    `Ano da descoberta. ${narrationValue(specimen.discoveryYear)}.`,
-    `Descoberto por. ${narrationValue(specimen.discoveredBy)}.`,
-    `Dieta. ${narrationValue(specimen.diet)}.`,
-    `Comprimento em metros. ${narrationValue(specimen.length)}.`,
     `Descrição. ${narrationValue(specimen.description)}`,
+    `Tipo. ${narrationValue(specimen.type)}.`,
+    `Comprimento. ${narrationValue(specimen.length)}.`,
+    `Dieta. ${narrationValue(specimen.diet)}.`,
+    `Era geológica. ${narrationValue(specimen.era)}.`,
   ].join(' ');
 }
 

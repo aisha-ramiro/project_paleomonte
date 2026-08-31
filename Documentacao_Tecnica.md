@@ -289,7 +289,7 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 - Substituído o controle visual de áudio pela Web Speech API nativa do navegador, sem envio de textos para uma IA, sem chave externa e sem criar arquivos de áudio.
 - A leitura só é iniciada após o visitante apertar play e usa `pt-BR`, priorizando uma voz em português disponível no dispositivo.
-- A narração segue a ordem: nome popular, nome científico, tipo, período geológico, era geológica, local, ano e responsável pela descoberta, dieta, comprimento e descrição.
+- A narração segue a ordem visual da ficha: nome científico, nome popular, período geológico, local da descoberta, descrição, tipo, comprimento, dieta e era geológica.
 - Adicionados à consulta pública os campos de ano e responsável pela descoberta, para que sejam incluídos na leitura.
 - O botão permite pausar e continuar a leitura. Ao sair da página, a síntese é cancelada para evitar que a voz continue em outra espécie.
 
