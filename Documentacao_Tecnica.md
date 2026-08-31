@@ -30,6 +30,7 @@ A interface pública e o painel administrativo estão conectados ao Supabase. Os
 | Banco de dados e autenticação | PostgreSQL + Auth via Supabase | Dados do acervo, papéis de acesso, RLS e login administrativo. |
 | Armazenamento | Supabase Storage | Bucket privado para imagens, áudios e arquivos de QR Code. |
 | Métricas | PostgreSQL via Supabase | Contadores diários agregados de acessos do site e de espécies. |
+| Leitura em voz alta | Web Speech API (`SpeechSynthesis`) | Leitura nativa da ficha pública em `pt-BR`, sem serviço externo ou arquivo de áudio. |
 
 ### Bibliotecas instaladas
 
@@ -49,7 +50,7 @@ Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. O 
 | --- | --- | --- |
 | Página inicial | `#/` | Apresentação do projeto, busca, atalhos de acessibilidade e espécies em destaque. |
 | Catálogo | `#/catalogo` | Busca textual, filtros locais por categoria e período, e cards de espécimes. |
-| Detalhe do espécime | `#/fosseis/:slug` | Informações demonstrativas, imagem principal, mini-galeria, atributos, áudio visual e abas de conteúdo. |
+| Detalhe do espécime | `#/fosseis/:slug` | Informações da espécie publicada, galeria de imagens, atributos e leitura nativa em voz alta acionada pelo visitante. |
 | Sobre o Museu | `#/sobre` | Contexto institucional e apresentação do PaleoMonte. |
 | Acessibilidade | `#/acessibilidade` | Controles demonstrativos para tamanho de texto e alto contraste, além da apresentação dos recursos. |
 | Painel administrativo | `#/admin` | Login Supabase e fluxo único para cadastrar espécie, categoria, mídias e QR Code. |
@@ -68,11 +69,12 @@ Exemplo de rota individual atualmente disponível:
 - Busca local no catálogo por nome, categoria e período.
 - Filtros locais por categoria e período.
 - Cards clicáveis que levam à página individual do espécime.
-- Interface visual de galeria de imagens.
+- Galeria funcional de imagens, com seleção da foto exibida na página da espécie.
 - Leitura em voz alta nativa da ficha pública, acionada por play.
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
 - Dashboard administrativo com métricas do acervo e acompanhamento agregado de acessos por período.
+- Filtro do dashboard por intervalo e por espécie, com atualização ao retornar ao painel.
 - Login administrativo por e-mail e senha via Supabase Auth.
 - Proteção do painel por sessão e papel de acesso.
 - Cadastro e edição de espécies, com categoria, imagem, áudio e QR Code no mesmo formulário.
@@ -105,6 +107,8 @@ PaleoMonte/
 │   ├── main.jsx                     # Páginas públicas, rotas e composição da aplicação
 │   └── styles.css                   # Estilos visuais e regras responsivas
 ├── supabase/
+│   ├── functions/
+│   │   └── admin-users/index.ts      # Edge Function para convites administrativos
 │   ├── migrations/
 │   │   ├── 202608300001_initial_schema.sql  # Banco, RLS, Storage e auditoria
 │   │   ├── 202608310001_storage_manager_read.sql
@@ -120,7 +124,7 @@ PaleoMonte/
 
 ### Organização atual do código
 
-Neste protótipo inicial, os componentes e as páginas estão reunidos em `src/main.jsx` para permitir uma implementação rápida e simples. A evolução recomendada é separar a aplicação por responsabilidade, por exemplo:
+As páginas públicas e a composição principal permanecem em `src/main.jsx`. O painel administrativo já está separado em `src/components/AdminPanel.jsx`, enquanto as consultas do catálogo e das métricas ficam em `src/services/`. A evolução recomendada é separar também as páginas públicas por responsabilidade, por exemplo:
 
 ```text
 src/
@@ -171,7 +175,6 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 ### Integrações e dados
 
-- Executar a migration `202608310002_access_metrics.sql` no SQL Editor do Supabase para ativar a coleta de acessos.
 - Publicação da Edge Function `admin-users` no Supabase para habilitar convites de administradores pelo painel.
 - Dados científicos validados pelo museu.
 - Hospedagem com domínio público estável antes da impressão definitiva dos QR Codes.
@@ -182,10 +185,10 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Substituição do hash routing por rotas de produção convencionais.
 - Separação do código em componentes e páginas individuais.
 - Paginação ou carregamento progressivo no catálogo.
-- Galeria de imagens funcional com ampliação.
-- Leitor de áudio real, com controles de acessibilidade.
+- Ampliação das imagens da galeria pública em tela cheia.
+- Controles avançados para a leitura nativa, como seleção de voz e ajuste de velocidade, se forem necessários após os testes de uso.
 - Testes de acessibilidade e compatibilidade com leitores de tela.
-- Tratamento de estados de carregamento, erro e ausência de resultados provenientes da API futura.
+- Aprimoramento dos estados de carregamento, erro e ausência de resultados do Supabase e da leitura nativa.
 
 ## 10. Orientações de manutenção
 
@@ -281,7 +284,7 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Criada a função segura `record_public_access`, chamada a cada navegação pública. Ela incrementa o total do site e, nas páginas de espécie publicada, também o total daquela espécie.
 - Não são armazenados eventos individuais, IPs, cookies de identificação, dispositivos, sessões ou horários de visitantes: somente a data e o total numérico diário.
 - Conectado o dashboard administrativo às tabelas de acesso, incluindo total do período filtrado, total do dia e gráfico de linha diário.
-- A migration precisa ser executada no SQL Editor do Supabase. A contagem começa a partir desse momento e não cria histórico retroativo.
+- A migration foi aplicada no projeto Supabase e a coleta está ativa. A contagem começa a partir da ativação e não cria histórico retroativo.
 - Adicionado ao filtro do dashboard o seletor de escopo: **Todos** mostra o site geral; ao selecionar uma espécie, os cartões e o gráfico passam a apresentar somente os acessos dela.
 - O painel atualiza os números novamente ao recuperar o foco, exibindo acessos feitos em outra aba sem exigir a alteração manual do filtro.
 
@@ -290,7 +293,6 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Substituído o controle visual de áudio pela Web Speech API nativa do navegador, sem envio de textos para uma IA, sem chave externa e sem criar arquivos de áudio.
 - A leitura só é iniciada após o visitante apertar play e usa `pt-BR`, priorizando uma voz em português disponível no dispositivo.
 - A narração segue a ordem visual da ficha: nome científico, nome popular, período geológico, local da descoberta, descrição, tipo, comprimento, dieta e era geológica.
-- Adicionados à consulta pública os campos de ano e responsável pela descoberta, para que sejam incluídos na leitura.
 - O botão permite pausar e continuar a leitura. Ao sair da página, a síntese é cancelada para evitar que a voz continue em outra espécie.
 
 ### Próxima atualização
