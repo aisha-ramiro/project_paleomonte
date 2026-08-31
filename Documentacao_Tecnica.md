@@ -282,6 +282,7 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Não são armazenados eventos individuais, IPs, cookies de identificação, dispositivos, sessões ou horários de visitantes: somente a data e o total numérico diário.
 - Conectado o dashboard administrativo às tabelas de acesso, incluindo total do período filtrado, total do dia e gráfico de linha diário.
 - A migration precisa ser executada no SQL Editor do Supabase. A contagem começa a partir desse momento e não cria histórico retroativo.
+- Adicionado ao filtro do dashboard o seletor de escopo: **Todos** mostra o site geral; ao selecionar uma espécie, os cartões e o gráfico passam a apresentar somente os acessos dela.
 
 ### Próxima atualização
 

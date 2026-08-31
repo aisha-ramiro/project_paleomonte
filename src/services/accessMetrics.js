@@ -44,24 +44,26 @@ export function usePublicAccessTracking(route) {
   }, [route]);
 }
 
-export async function getAccessMetrics({ startDate, endDate }) {
+export async function getAccessMetrics({ startDate, endDate, specimenId = null }) {
   if (!isSupabaseConfigured) {
     return { periodTotal: 0, todayTotal: 0, series: buildDailyAccessSeries(startDate, endDate), error: 'not-configured' };
   }
 
   const today = localDateInput();
+  const accessTable = specimenId ? 'specimen_access_daily' : 'site_access_daily';
+  const scopedToSpecimen = (query) => specimenId ? query.eq('specimen_id', specimenId) : query;
   const [periodResponse, todayResponse] = await Promise.all([
-    supabase
-      .from('site_access_daily')
+    scopedToSpecimen(supabase
+      .from(accessTable)
       .select('access_date, access_count')
       .gte('access_date', startDate)
       .lte('access_date', endDate)
-      .order('access_date'),
-    supabase
-      .from('site_access_daily')
+      .order('access_date')),
+    scopedToSpecimen(supabase
+      .from(accessTable)
       .select('access_count')
       .eq('access_date', today)
-      .maybeSingle(),
+      .maybeSingle()),
   ]);
 
   const error = periodResponse.error ?? todayResponse.error;

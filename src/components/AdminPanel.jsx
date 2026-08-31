@@ -120,7 +120,7 @@ function formatAccessCount(value) {
   return new Intl.NumberFormat('pt-BR').format(value ?? 0);
 }
 
-function AccessLineChart({ startDate, endDate, series, periodTotal, loading, error }) {
+function AccessLineChart({ startDate, endDate, series, periodTotal, loading, error, specimenName }) {
   const chartSeries = series.length ? series : [{ access_date: startDate, access_count: 0 }, { access_date: endDate, access_count: 0 }];
   const maxValue = Math.max(...chartSeries.map((item) => item.access_count), 1);
   const hasRecords = chartSeries.some((item) => item.access_count > 0);
@@ -140,18 +140,21 @@ function AccessLineChart({ startDate, endDate, series, periodTotal, loading, err
       : !hasRecords
         ? 'Sem acessos registrados para este filtro.'
         : null;
-  const ariaLabel = `Gráfico de linha com ${formatAccessCount(periodTotal)} acessos no período selecionado.`;
+  const ariaLabel = `Gráfico de linha com ${formatAccessCount(periodTotal)} acessos ${specimenName ? `da espécie ${specimenName}` : 'do site'} no período selecionado.`;
 
-  return <div className="access-chart"><div className="access-chart-heading"><div><p className="eyebrow">Acessos no período</p><h2>Evolução dos acessos</h2></div><span>{loading ? '…' : `${formatAccessCount(periodTotal)} acessos`}</span></div><div className="chart-frame"><svg viewBox="0 0 600 170" role="img" aria-label={ariaLabel}><line x1="32" x2="570" y1="24" y2="24"/><line x1="32" x2="570" y1="64" y2="64"/><line x1="32" x2="570" y1="104" y2="104"/><line x1="32" x2="570" y1="144" y2="144"/><polyline points={points} fill="none"/>{chartSeries.map((item, index) => { const point = pointFor(item, index); return <circle cx={point.x} cy={point.y} r={index === 0 || index === chartSeries.length - 1 ? '3' : '1.7'} key={item.access_date}/>; })}</svg><div className="chart-labels"><span>{formatShortDate(startDate)}</span><span>{formatShortDate(endDate)}</span></div>{message && <p>{message}</p>}</div></div>;
+  return <div className="access-chart"><div className="access-chart-heading"><div><p className="eyebrow">{specimenName ? 'Espécie selecionada' : 'Acessos no período'}</p><h2>{specimenName ? specimenName : 'Evolução dos acessos'}</h2></div><span>{loading ? '…' : `${formatAccessCount(periodTotal)} acessos`}</span></div><div className="chart-frame"><svg viewBox="0 0 600 170" role="img" aria-label={ariaLabel}><line x1="32" x2="570" y1="24" y2="24"/><line x1="32" x2="570" y1="64" y2="64"/><line x1="32" x2="570" y1="104" y2="104"/><line x1="32" x2="570" y1="144" y2="144"/><polyline points={points} fill="none"/>{chartSeries.map((item, index) => { const point = pointFor(item, index); return <circle cx={point.x} cy={point.y} r={index === 0 || index === chartSeries.length - 1 ? '3' : '1.7'} key={item.access_date}/>; })}</svg><div className="chart-labels"><span>{formatShortDate(startDate)}</span><span>{formatShortDate(endDate)}</span></div>{message && <p>{message}</p>}</div></div>;
 }
 
 function AdminDashboard({ roles }) {
   const [summary, setSummary] = useState({ loading: true, specimens: null, categories: null, media: null, qrCodes: null });
   const [accessMetrics, setAccessMetrics] = useState({ loading: true, periodTotal: 0, todayTotal: 0, series: [], error: null });
+  const [trackedSpecimens, setTrackedSpecimens] = useState([]);
+  const [selectedSpecimenId, setSelectedSpecimenId] = useState('');
   const currentDate = new Date();
   const [startDate, setStartDate] = useState(() => `${localDateInput().slice(0, 7)}-01`);
   const [endDate, setEndDate] = useState(localDateInput);
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
+  const selectedSpecimen = trackedSpecimens.find((specimen) => specimen.id === selectedSpecimenId);
 
   useEffect(() => {
     let active = true;
@@ -165,16 +168,24 @@ function AdminDashboard({ roles }) {
 
   useEffect(() => {
     let active = true;
+    supabase.from('specimens').select('id, scientific_name').order('scientific_name').then(({ data }) => {
+      if (active) setTrackedSpecimens(data ?? []);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     setAccessMetrics((current) => ({ ...current, loading: true }));
-    getAccessMetrics({ startDate, endDate }).then((metrics) => {
+    getAccessMetrics({ startDate, endDate, specimenId: selectedSpecimenId || null }).then((metrics) => {
       if (active) setAccessMetrics({ loading: false, ...metrics });
     }).catch(() => {
       if (active) setAccessMetrics({ loading: false, periodTotal: 0, todayTotal: 0, series: [], error: 'unavailable' });
     });
     return () => { active = false; };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedSpecimenId]);
 
-  return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><section className="access-dashboard"><div className="access-dashboard-head"><div><p className="eyebrow">Acompanhamento do site</p><h2>Acessos</h2></div><div className="date-filter"><label>De<input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)}/></label><label>Até<input type="date" value={endDate} min={startDate} max={localDateInput(currentDate)} onChange={(event) => setEndDate(event.target.value)}/></label></div></div><div className="access-dashboard-body"><div className="access-summary"><article><span>Acessos no período</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.periodTotal)}</b><small>{formatShortDate(startDate)} a {formatShortDate(endDate)}</small></article><article><span>Acessos hoje</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.todayTotal)}</b><small>{formatShortDate(localDateInput(currentDate))}</small></article><p>{accessMetrics.error ? 'A coleta começará após aplicar a migration de acessos no Supabase.' : 'Contadores diários agregados, sem registrar informações individuais de visitantes.'}</p></div><AccessLineChart startDate={startDate} endDate={endDate} series={accessMetrics.series} periodTotal={accessMetrics.periodTotal} loading={accessMetrics.loading} error={accessMetrics.error}/></div></section></>;
+  return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><section className="access-dashboard"><div className="access-dashboard-head"><div><p className="eyebrow">Acompanhamento do site</p><h2>Acessos</h2></div><div className="date-filter"><label>Visualizar<select value={selectedSpecimenId} onChange={(event) => setSelectedSpecimenId(event.target.value)} aria-label="Selecionar espécie para visualizar acessos"><option value="">Todos — site geral e espécies</option>{trackedSpecimens.map((specimen) => <option value={specimen.id} key={specimen.id}>{specimen.scientific_name}</option>)}</select></label><label>De<input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)}/></label><label>Até<input type="date" value={endDate} min={startDate} max={localDateInput(currentDate)} onChange={(event) => setEndDate(event.target.value)}/></label></div></div><div className="access-dashboard-body"><div className="access-summary"><article><span>{selectedSpecimen ? 'Acessos da espécie' : 'Acessos no período'}</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.periodTotal)}</b><small>{formatShortDate(startDate)} a {formatShortDate(endDate)}</small></article><article><span>Acessos hoje</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.todayTotal)}</b><small>{formatShortDate(localDateInput(currentDate))}</small></article><p>{accessMetrics.error ? 'A coleta começará após aplicar a migration de acessos no Supabase.' : selectedSpecimen ? `Contadores diários de ${selectedSpecimen.scientific_name}, sem registrar informações individuais de visitantes.` : 'Contadores diários agregados, sem registrar informações individuais de visitantes.'}</p></div><AccessLineChart startDate={startDate} endDate={endDate} series={accessMetrics.series} periodTotal={accessMetrics.periodTotal} loading={accessMetrics.loading} error={accessMetrics.error} specimenName={selectedSpecimen?.scientific_name}/></div></section></>;
 }
 
 function SectionMessage({ title, children }) {
