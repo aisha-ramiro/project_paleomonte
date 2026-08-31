@@ -176,13 +176,22 @@ function AdminDashboard({ roles }) {
 
   useEffect(() => {
     let active = true;
-    setAccessMetrics((current) => ({ ...current, loading: true }));
-    getAccessMetrics({ startDate, endDate, specimenId: selectedSpecimenId || null }).then((metrics) => {
-      if (active) setAccessMetrics({ loading: false, ...metrics });
-    }).catch(() => {
-      if (active) setAccessMetrics({ loading: false, periodTotal: 0, todayTotal: 0, series: [], error: 'unavailable' });
-    });
-    return () => { active = false; };
+    const loadMetrics = () => {
+      if (!active) return;
+      setAccessMetrics((current) => ({ ...current, loading: true }));
+      getAccessMetrics({ startDate, endDate, specimenId: selectedSpecimenId || null }).then((metrics) => {
+        if (active) setAccessMetrics({ loading: false, ...metrics });
+      }).catch(() => {
+        if (active) setAccessMetrics({ loading: false, periodTotal: 0, todayTotal: 0, series: [], error: 'unavailable' });
+      });
+    };
+
+    loadMetrics();
+    window.addEventListener('focus', loadMetrics);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', loadMetrics);
+    };
   }, [startDate, endDate, selectedSpecimenId]);
 
   return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><section className="access-dashboard"><div className="access-dashboard-head"><div><p className="eyebrow">Acompanhamento do site</p><h2>Acessos</h2></div><div className="date-filter"><label>Visualizar<select value={selectedSpecimenId} onChange={(event) => setSelectedSpecimenId(event.target.value)} aria-label="Selecionar espécie para visualizar acessos"><option value="">Todos — site geral e espécies</option>{trackedSpecimens.map((specimen) => <option value={specimen.id} key={specimen.id}>{specimen.scientific_name}</option>)}</select></label><label>De<input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)}/></label><label>Até<input type="date" value={endDate} min={startDate} max={localDateInput(currentDate)} onChange={(event) => setEndDate(event.target.value)}/></label></div></div><div className="access-dashboard-body"><div className="access-summary"><article><span>{selectedSpecimen ? 'Acessos da espécie' : 'Acessos no período'}</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.periodTotal)}</b><small>{formatShortDate(startDate)} a {formatShortDate(endDate)}</small></article><article><span>Acessos hoje</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.todayTotal)}</b><small>{formatShortDate(localDateInput(currentDate))}</small></article><p>{accessMetrics.error ? 'A coleta começará após aplicar a migration de acessos no Supabase.' : selectedSpecimen ? `Contadores diários de ${selectedSpecimen.scientific_name}, sem registrar informações individuais de visitantes.` : 'Contadores diários agregados, sem registrar informações individuais de visitantes.'}</p></div><AccessLineChart startDate={startDate} endDate={endDate} series={accessMetrics.series} periodTotal={accessMetrics.periodTotal} loading={accessMetrics.loading} error={accessMetrics.error} specimenName={selectedSpecimen?.scientific_name}/></div></section></>;
