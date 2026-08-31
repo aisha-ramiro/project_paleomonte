@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 function primaryCategory(row) {
@@ -48,6 +48,8 @@ function mapSpecimen(row, urls) {
 
 export function usePublicCatalog() {
   const [state, setState] = useState({ loading: true, specimens: [], error: null });
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const reload = useCallback(() => setRefreshVersion((current) => current + 1), []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -79,7 +81,7 @@ export function usePublicCatalog() {
 
     load();
     return () => { active = false; };
-  }, []);
+  }, [refreshVersion]);
 
-  return state;
+  return { ...state, reload };
 }

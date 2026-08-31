@@ -14,9 +14,11 @@ const roleLabels = {
 };
 
 const emptySpecimen = {
-  scientific_name: '', common_name: '', slug: '', summary: '', description: '',
-  geological_period: '', geological_era: '', discovery_location: '',
-  specimen_type: '', diet: '', length_meters: '', status: 'draft',
+  museum_code: '', scientific_name: '', common_name: '', slug: '', summary: '', description: '',
+  geological_period: '', geological_era: '', geological_age: '', geological_formation: '',
+  discovery_location: '', discovery_year: '', discovered_by: '', latitude: '', longitude: '',
+  specimen_type: '', diet: '', length_meters: '', additional_info: '', is_featured: false,
+  status: 'draft',
 };
 
 const slugify = (value) => value
@@ -175,8 +177,61 @@ async function createQrCode({ specimenId, slug, userId }) {
   if (saveError) throw saveError;
 }
 
+function getQrCode(specimen) {
+  if (Array.isArray(specimen?.qr_codes)) return specimen.qr_codes.find((code) => code.status === 'active') ?? specimen.qr_codes[0] ?? null;
+  return specimen?.qr_codes ?? null;
+}
+
+function escapePrintHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
+}
+
+function PrintQrCodeButton({ specimen, onError }) {
+  const qrCode = getQrCode(specimen);
+
+  const print = async () => {
+    if (!qrCode?.image_path) {
+      onError('Esta espécie ainda não possui um QR Code. Abra “Editar”, marque a geração do QR Code e salve o cadastro.');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=720,height=860');
+    if (!printWindow) {
+      onError('O navegador bloqueou a janela de impressão. Permita pop-ups para este endereço e tente novamente.');
+      return;
+    }
+
+    printWindow.document.write('<!doctype html><html lang="pt-BR"><head><title>Preparando QR Code</title></head><body><p>Preparando o QR Code para impressão…</p></body></html>');
+    printWindow.document.close();
+
+    const { data, error } = await supabase.storage.from('museum-media').createSignedUrl(qrCode.image_path, 300);
+    if (error || !data?.signedUrl) {
+      printWindow.close();
+      onError(`Não foi possível abrir o QR Code para impressão: ${error?.message ?? 'arquivo não encontrado'}.`);
+      return;
+    }
+
+    const scientificName = escapePrintHtml(specimen.scientific_name);
+    const commonName = escapePrintHtml(specimen.common_name || '');
+    const destination = escapePrintHtml(`${window.location.origin}/#${qrCode.public_path}`);
+    const imageUrl = escapePrintHtml(data.signedUrl);
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>QR Code — ${scientificName}</title><style>body{margin:0;padding:38px;font-family:Arial,sans-serif;color:#15231e;text-align:center}main{max-width:520px;margin:auto;border:1px solid #ded8cd;border-radius:12px;padding:30px}h1{font-size:24px;margin:0 0 7px}p{font-size:14px;line-height:1.5}img{width:min(100%,420px);height:auto;margin:20px auto;display:block}.url{font-size:11px;overflow-wrap:anywhere;color:#4f5b55}@media print{body{padding:0}main{border:0}}</style></head><body><main><p>Museu de Paleontologia — PaleoMonte</p><h1>${scientificName}</h1>${commonName ? `<p>${commonName}</p>` : ''}<img src="${imageUrl}" alt="QR Code para ${scientificName}"><p class="url">Destino: ${destination}</p></main><script>window.addEventListener('load', function () { window.setTimeout(function () { window.print(); }, 250); });<\/script></body></html>`);
+    printWindow.document.close();
+  };
+
+  return <button className="text-button" onClick={print}>Imprimir QR Code</button>;
+}
+
 function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
-  const [form, setForm] = useState(specimen ? { ...emptySpecimen, ...specimen, length_meters: specimen.length_meters ?? '' } : emptySpecimen);
+  const [form, setForm] = useState(specimen ? {
+    ...emptySpecimen,
+    ...specimen,
+    length_meters: specimen.length_meters ?? '',
+    discovery_year: specimen.discovery_year ?? '',
+    latitude: specimen.latitude ?? '',
+    longitude: specimen.longitude ?? '',
+  } : emptySpecimen);
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState(specimen?.specimen_categories?.find((item) => item.is_primary)?.category_id ?? specimen?.specimen_categories?.[0]?.category_id ?? '');
   const [imageFile, setImageFile] = useState(null);
@@ -199,7 +254,7 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
     if (audioFile && canPublish && form.status === 'published' && !transcript.trim()) { setError('Informe a transcrição antes de publicar um áudio.'); return; }
     setSaving(true); setError('');
     const { data: { user } } = await supabase.auth.getUser();
-    const payload = { scientific_name: form.scientific_name.trim(), common_name: form.common_name.trim() || null, slug: form.slug || slugify(form.scientific_name), summary: form.summary.trim() || null, description: form.description.trim() || null, geological_period: form.geological_period.trim() || null, geological_era: form.geological_era.trim() || null, discovery_location: form.discovery_location.trim() || null, specimen_type: form.specimen_type.trim() || null, diet: form.diet.trim() || null, length_meters: form.length_meters === '' ? null : Number(form.length_meters), status: canPublish ? form.status : 'draft' };
+    const payload = { museum_code: form.museum_code.trim() || null, scientific_name: form.scientific_name.trim(), common_name: form.common_name.trim() || null, slug: form.slug || slugify(form.scientific_name), summary: form.summary.trim() || null, description: form.description.trim() || null, geological_period: form.geological_period.trim() || null, geological_era: form.geological_era.trim() || null, geological_age: form.geological_age.trim() || null, geological_formation: form.geological_formation.trim() || null, discovery_location: form.discovery_location.trim() || null, discovery_year: form.discovery_year === '' ? null : Number(form.discovery_year), discovered_by: form.discovered_by.trim() || null, latitude: form.latitude === '' ? null : Number(form.latitude), longitude: form.longitude === '' ? null : Number(form.longitude), specimen_type: form.specimen_type.trim() || null, diet: form.diet.trim() || null, length_meters: form.length_meters === '' ? null : Number(form.length_meters), additional_info: form.additional_info.trim() || null, is_featured: Boolean(form.is_featured), status: canPublish ? form.status : 'draft' };
     const query = specimen ? supabase.from('specimens').update(payload).eq('id', specimen.id).select().single() : supabase.from('specimens').insert({ ...payload, created_by: user.id }).select().single();
     const { data, error: saveError } = await query;
     if (saveError) { setSaving(false); setError(saveError.message); return; }
@@ -220,10 +275,11 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
     onSaved(data, warnings);
   };
 
-  return <form className="admin-form specimen-form" onSubmit={submit}><div className="form-heading"><div><p className="eyebrow">{specimen ? 'Edição completa' : 'Novo registro'}</p><h2>{specimen ? 'Editar espécie' : 'Cadastrar espécie'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancelar</button></div><div className="form-grid"><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label></div><fieldset className="asset-fieldset"><legend>Mídias da espécie</legend><p>Inclua a imagem de capa e, se houver, o áudio de descrição no mesmo cadastro.</p><div className="form-grid"><label>Imagem de capa<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}/></label><label>Texto alternativo da imagem<textarea rows="3" value={altText} onChange={(event) => setAltText(event.target.value)} placeholder="Descreva a imagem para leitores de tela."/></label><label>Áudio de descrição<input type="file" accept="audio/mpeg,audio/ogg,audio/wav" onChange={(event) => setAudioFile(event.target.files?.[0] ?? null)}/></label><label>Transcrição do áudio<textarea rows="3" value={transcript} onChange={(event) => setTranscript(event.target.value)} placeholder="Obrigatória antes da aprovação do áudio."/></label></div></fieldset>{canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend><label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}{error && <p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button green" disabled={saving}>{saving ? 'Salvando cadastro...' : 'Salvar espécie, mídia e QR Code'}</button></div></form>;
+  const currentQrCode = getQrCode(specimen);
+  return <form className="admin-form specimen-form" onSubmit={submit}><div className="form-heading"><div><p className="eyebrow">{specimen ? 'Edição completa' : 'Novo registro'}</p><h2>{specimen ? 'Editar espécie' : 'Cadastrar espécie'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancelar</button></div><div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div><fieldset className="asset-fieldset"><legend>Mídias da espécie</legend><p>Inclua a imagem de capa e, se houver, o áudio de descrição no mesmo cadastro.</p><div className="form-grid"><label>Imagem de capa<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}/></label><label>Texto alternativo da imagem<textarea rows="3" value={altText} onChange={(event) => setAltText(event.target.value)} placeholder="Descreva a imagem para leitores de tela."/></label><label>Áudio de descrição<input type="file" accept="audio/mpeg,audio/ogg,audio/wav" onChange={(event) => setAudioFile(event.target.files?.[0] ?? null)}/></label><label>Transcrição do áudio<textarea rows="3" value={transcript} onChange={(event) => setTranscript(event.target.value)} placeholder="Obrigatória antes da aprovação do áudio."/></label></div></fieldset>{canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend>{currentQrCode?.image_path && <p>Há um QR Code ativo (versão {currentQrCode.version}). Depois de salvar, use “Imprimir QR Code” na listagem de espécies para visualizar, imprimir ou salvar em PDF.</p>}<label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}{error && <p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button green" disabled={saving}>{saving ? 'Salvando cadastro...' : 'Salvar espécie, mídia e QR Code'}</button></div></form>;
 }
 
-function SpeciesManager({ roles }) {
+function SpeciesManager({ roles, onCatalogChanged }) {
   const [specimens, setSpecimens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -233,7 +289,7 @@ function SpeciesManager({ roles }) {
 
   const load = async () => {
     setLoading(true);
-    const { data, error: loadError } = await supabase.from('specimens').select('id, scientific_name, common_name, slug, status, updated_at, geological_period, specimen_categories(category_id, is_primary)').order('updated_at', { ascending: false });
+    const { data, error: loadError } = await supabase.from('specimens').select('*, specimen_categories(category_id, is_primary), qr_codes(id, image_path, public_path, status, version)').order('updated_at', { ascending: false });
     setLoading(false);
     if (loadError) { setError(loadError.message); return; }
     setSpecimens(data ?? []);
@@ -244,11 +300,12 @@ function SpeciesManager({ roles }) {
     if (!window.confirm(`Excluir “${specimen.scientific_name}”? Esta ação não pode ser desfeita.`)) return;
     const { error: removeError } = await supabase.from('specimens').delete().eq('id', specimen.id);
     if (removeError) { setError(removeError.message); return; }
+    onCatalogChanged?.();
     load();
   };
 
-  if (editing) return <SpecimenForm specimen={editing === 'new' ? null : editing} roles={roles} onCancel={() => setEditing(null)} onSaved={(_data, warnings) => { setEditing(null); setNotice(warnings.length ? `Espécie salva, mas houve pendência em: ${warnings.join(' | ')}` : 'Espécie, categoria, mídias e QR Code salvos.'); load(); }}/>;
-  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>{notice && <p className="form-success">{notice}</p>}{error && <p className="form-error" role="alert">{error}</p>}{loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>)}</tbody></table></div>}</section>;
+  if (editing) return <SpecimenForm specimen={editing === 'new' ? null : editing} roles={roles} onCancel={() => setEditing(null)} onSaved={(_data, warnings) => { setEditing(null); setNotice(warnings.length ? `Espécie salva, mas houve pendência em: ${warnings.join(' | ')}` : 'Espécie, categoria, mídias e QR Code salvos.'); onCatalogChanged?.(); load(); }}/>;
+  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>{notice && <p className="form-success">{notice}</p>}{error && <p className="form-error" role="alert">{error}</p>}{loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button><PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>)}</tbody></table></div>}</section>;
 }
 
 function CategoriesManager() {
@@ -301,26 +358,26 @@ function UsersManager() {
   return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Acesso ao sistema</p><h2>Administradores</h2></div></div><div className="manager-split"><form className="admin-form compact-form" onSubmit={invite}><h3>Convidar administrador</h3><p className="helper-text">A pessoa receberá um convite por e-mail e terá acesso administrativo após criar a senha.</p><label>E-mail *<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required placeholder="nome@exemplo.com"/></label>{error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-success">{message}</p>}<button className="button green" disabled={inviting}>{inviting ? 'Enviando...' : 'Enviar convite'}</button></form><div className="category-list users-list"><h3>Usuários cadastrados</h3>{loading ? <p>Carregando usuários...</p> : users.length === 0 ? <p>Nenhum usuário encontrado.</p> : users.map((user) => <article key={user.id}><b>{user.email}</b><span>{new Intl.DateTimeFormat('pt-BR').format(new Date(user.created_at))}</span><p>{user.roles.length ? user.roles.map((role) => roleLabels[role] ?? role).join(', ') : 'Sem papel atribuído'}</p></article>)}</div></div></section>;
 }
 
-function AdminShell({ session, roles, onSignOut }) {
+function AdminShell({ session, roles, onSignOut, onCatalogChanged }) {
   const [active, setActive] = useState('Painel');
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
   const labels = ['Painel', 'Espécies', ...(canManage ? ['Categorias'] : []), ...(roles.includes('admin') ? ['Usuários'] : []), 'Configurações'];
   const primaryRole = ['admin', 'curator', 'editor', 'contributor', 'viewer'].find((role) => roles.includes(role));
   let content = <AdminDashboard roles={roles} setActive={setActive}/>;
-  if (active === 'Espécies') content = <SpeciesManager roles={roles}/>;
+  if (active === 'Espécies') content = <SpeciesManager roles={roles} onCatalogChanged={onCatalogChanged}/>;
   if (active === 'Categorias') content = <CategoriesManager/>;
   if (active === 'Usuários') content = <UsersManager/>;
   if (active === 'Configurações') content = <SectionMessage title="Configurações">As configurações institucionais, domínio público e e-mails administrativos serão centralizados aqui.</SectionMessage>;
   return <main className="admin"><aside className="admin-side"><AdminBrand/>{labels.map((label) => <button className={active === label ? 'active' : ''} onClick={() => setActive(label)} key={label}><span>{label === 'Painel' ? '⌂' : '▧'}</span>{label}</button>)}<button className="admin-exit" onClick={onSignOut}><span>↪</span>Sair</button></aside><section className="admin-main"><div className="admin-top"><div><p className="eyebrow">Área administrativa</p><h1>{active}</h1></div><div className="admin-user"><i>{session.user.email?.slice(0, 2).toUpperCase()}</i><span>{session.user.email}<small>{roleLabels[primaryRole] ?? 'Equipe'}</small></span></div></div>{content}{canPublish && <p className="publication-note">Publicações devem conter informações e mídias validadas pelo Museu de Paleontologia.</p>}</section></main>;
 }
 
-export function AdminPanel() {
+export function AdminPanel({ onCatalogChanged }) {
   const { loading, session, roles, error } = useAdminSession();
   const signOut = async () => { await supabase.auth.signOut(); window.location.hash = '/'; };
   if (!isSupabaseConfigured) return <AdminSetup/>;
   if (loading) return <main className="admin-login"><div className="login-card"><AdminBrand/><p>Verificando acesso...</p></div></main>;
   if (!session) return <AdminLogin/>;
   if (error || !roles.some((role) => rolesThatCanAccessAdmin.includes(role))) return <AdminAccessDenied session={session} roles={roles} onSignOut={signOut}/>;
-  return <AdminShell session={session} roles={roles} onSignOut={signOut}/>;
+  return <AdminShell session={session} roles={roles} onSignOut={signOut} onCatalogChanged={onCatalogChanged}/>;
 }

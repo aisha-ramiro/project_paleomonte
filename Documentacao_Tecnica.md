@@ -234,6 +234,15 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Adicionada geração automática de QR Code e armazenamento de sua imagem privada no bucket `museum-media`.
 - Criada migration complementar para permitir que a equipe editorial consulte arquivos privados do acervo.
 
+### 2026-08-31 — Correções de catálogo, edição e impressão de QR Code
+
+- Corrigida a atualização do catálogo público após criar, editar ou excluir uma espécie no mesmo acesso à aplicação; não é mais necessário recarregar a página para consultar o registro recém-publicado.
+- A listagem administrativa passou a recuperar o registro completo antes de editar, preservando os campos já cadastrados.
+- Ampliado o formulário de espécie com código do museu, dados geológicos, detalhes da descoberta, coordenadas, informações adicionais e destaque na página inicial.
+- Adicionado o comando **Imprimir QR Code** ao lado de Editar e Excluir na listagem de espécies.
+- A impressão abre uma visualização própria com o QR Code, o nome da espécie e o endereço de destino. Pela caixa de impressão do navegador também é possível salvar o QR Code como PDF para impressão posterior.
+- A opção exige que a espécie já possua QR Code gerado e que a política de leitura do bucket privado `museum-media` esteja aplicada no Supabase.
+
 ### Próxima atualização
 
 Ao realizar uma nova melhoria, adicione uma subseção com:
