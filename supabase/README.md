@@ -7,7 +7,7 @@ Esta pasta contém a infraestrutura de dados do PaleoMonte. A migration inicial 
 1. Crie um projeto em [Supabase](https://supabase.com/dashboard).
 2. No projeto, abra **SQL Editor**.
 3. Copie e execute o conteúdo de `migrations/202608300001_initial_schema.sql`.
-   Para projetos que já executaram essa primeira migration, execute também cada migration posterior pelo SQL Editor, em ordem numérica.
+   Para projetos que já executaram essa primeira migration, execute também cada migration posterior pelo SQL Editor, em ordem numérica. A migration `202608310002_access_metrics.sql` ativa os contadores diários de acessos exibidos no painel.
 4. No Supabase Auth, crie ou convide o primeiro usuário administrativo.
 5. Copie o UUID desse usuário e atribua o papel de administrador:
 
@@ -44,7 +44,19 @@ specimens ── N:N ── media ── Supabase Storage (museum-media)
 specimens ── 1:1 ── qr_codes
 
 audit_log registra alterações administrativas relevantes.
+
+site_access_daily registra somente o total de acessos por dia.
+specimen_access_daily registra somente o total diário de acessos por espécie.
 ```
+
+## Métricas de acesso
+
+A coleta de acesso é agregada no próprio PostgreSQL: cada navegação pública incrementa o contador do dia, e uma página de espécie publicada também incrementa o contador daquela espécie.
+
+- Não são armazenados IP, identificador de visitante, navegador, dispositivo, sessão ou horário individual.
+- O fuso usado para definir o dia é `America/Sao_Paulo`.
+- As tabelas são lidas apenas pela equipe editorial no painel; visitantes não conseguem consultar os totais.
+- A contagem começa depois da execução da migration e não recupera acessos antigos.
 
 ## Cuidados com mídias
 

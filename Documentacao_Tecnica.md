@@ -1,12 +1,12 @@
 # Documentação Técnica — PaleoMonte
 
-> Última atualização: 30 de agosto de 2026
+> Última atualização: 31 de agosto de 2026
 >
-> Status atual: protótipo navegável com Supabase conectado para o painel administrativo. O catálogo público permanece demonstrativo até o cadastro e a validação institucional do primeiro conteúdo.
+> Status atual: aplicação navegável com Supabase conectado. O painel administra o acervo e o catálogo público exibe espécies com status publicado, sujeitas à validação institucional.
 
 ## 1. Visão geral
 
-**PaleoMonte** é uma proposta de catálogo digital para o Museu de Paleontologia Prof. Antonio Celso de Arruda Campos, em Monte Alto/SP. A aplicação pretende apoiar a visita ao museu, oferecendo páginas públicas para espécimes acessadas por navegação comum ou, futuramente, por QR Code.
+**PaleoMonte** é uma proposta de catálogo digital para o Museu de Paleontologia Prof. Antonio Celso de Arruda Campos, em Monte Alto/SP. A aplicação apoia a visita ao museu, oferecendo páginas públicas para espécimes acessadas por navegação comum ou por QR Code.
 
 O fluxo principal previsto é:
 
@@ -14,7 +14,7 @@ O fluxo principal previsto é:
 QR Code → página do espécime → informações, imagens e acessibilidade
 ```
 
-Nesta primeira entrega, foi desenvolvido somente o front-end demonstrativo. Não há conexão com API, banco de dados, autenticação, QR Codes funcionais ou conteúdo científico validado.
+A interface pública e o painel administrativo estão conectados ao Supabase. Os conteúdos publicados continuam dependendo da validação científica e institucional do museu.
 
 ## 2. Tecnologias utilizadas
 
@@ -27,7 +27,9 @@ Nesta primeira entrega, foi desenvolvido somente o front-end demonstrativo. Não
 | Navegação | Hash routing nativo | Rotas internas via URLs com `#/`, sem biblioteca adicional de rotas. |
 | Tipografia | Google Fonts — Manrope e DM Sans | Tipografia da interface, carregada no CSS. |
 | Controle de versão | Git + GitHub | Histórico e sincronização do código. |
-| Banco de dados planejado | PostgreSQL via Supabase | Migration relacional, RLS, Storage e auditoria preparados. |
+| Banco de dados e autenticação | PostgreSQL + Auth via Supabase | Dados do acervo, papéis de acesso, RLS e login administrativo. |
+| Armazenamento | Supabase Storage | Bucket privado para imagens, áudios e arquivos de QR Code. |
+| Métricas | PostgreSQL via Supabase | Contadores diários agregados de acessos do site e de espécies. |
 
 ### Bibliotecas instaladas
 
@@ -36,8 +38,10 @@ Nesta primeira entrega, foi desenvolvido somente o front-end demonstrativo. Não
 - `vite`
 - `@vitejs/plugin-react`
 - `@supabase/supabase-js`
+- `qrcode`
+- `react-easy-crop`
 
-Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. A biblioteca oficial do Supabase foi instalada, mas não é ativada enquanto as variáveis de ambiente não forem preenchidas.
+Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. O cliente oficial do Supabase é ativado apenas quando as variáveis de ambiente locais são preenchidas.
 
 ## 3. Páginas e rotas implementadas
 
@@ -68,17 +72,19 @@ Exemplo de rota individual atualmente disponível:
 - Controle visual de reprodução de áudio.
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
-- Painel administrativo de demonstração com métricas e ações rápidas não persistentes.
+- Dashboard administrativo com métricas do acervo e acompanhamento agregado de acessos por período.
 - Login administrativo por e-mail e senha via Supabase Auth.
 - Proteção do painel por sessão e papel de acesso.
 - Cadastro e edição de espécies, com categoria, imagem, áudio e QR Code no mesmo formulário.
 - Cadastro, edição e exclusão de categorias.
 - Envio de mídias para o bucket privado, com vínculo automático à espécie e estado pendente/aprovado conforme o papel e o status.
 - Geração e armazenamento do arquivo de QR Code durante o cadastro da espécie.
+- Impressão de QR Code diretamente pela lista de espécies.
+- Coleta diária agregada de acessos do site e das espécies, sem registrar IP, dispositivo, identificador de visitante ou horário individual.
 
 ## 5. Conteúdo demonstrativo
 
-Os espécimes, descrições, atributos, métricas e datas utilizados no protótipo são dados de demonstração. Eles não devem ser interpretados como conteúdo científico, museológico ou institucional definitivo.
+Qualquer espécime, descrição, imagem, áudio ou métrica publicada deve ser interpretado como conteúdo em validação até a aprovação científica, museológica e institucional do museu.
 
 A imagem em `src/assets/museum-hero.png` é ilustrativa, gerada para apoiar a concepção visual. Antes de uma publicação institucional, ela deverá ser substituída por imagens autorizadas pelo museu e acompanhadas de textos alternativos adequados.
 
@@ -89,13 +95,20 @@ PaleoMonte/
 ├── src/
 │   ├── assets/
 │   │   └── museum-hero.png          # Imagem ilustrativa temporária
+│   ├── components/
+│   │   └── AdminPanel.jsx            # Painel, cadastro e gestão administrativa
 │   ├── lib/
 │   │   └── supabase.js              # Cliente Supabase, ativado por variáveis de ambiente
-│   ├── main.jsx                     # Componentes, páginas, dados demonstrativos e rotas
+│   ├── services/
+│   │   ├── accessMetrics.js          # Coleta e consulta de contadores diários
+│   │   └── publicCatalog.js          # Consulta do catálogo público
+│   ├── main.jsx                     # Páginas públicas, rotas e composição da aplicação
 │   └── styles.css                   # Estilos visuais e regras responsivas
 ├── supabase/
 │   ├── migrations/
-│   │   └── 202608300001_initial_schema.sql  # Banco, RLS, Storage e auditoria
+│   │   ├── 202608300001_initial_schema.sql  # Banco, RLS, Storage e auditoria
+│   │   ├── 202608310001_storage_manager_read.sql
+│   │   └── 202608310002_access_metrics.sql  # Contadores diários de acessos
 │   └── README.md                     # Instruções de implantação do Supabase
 ├── .env.example                      # Modelo seguro de variáveis de ambiente
 ├── index.html                       # Documento HTML de entrada
@@ -158,11 +171,10 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 ### Integrações e dados
 
-- Aprovação de mídias e escolha de imagem de capa no painel.
-- Geração do arquivo gráfico dos QR Codes.
+- Executar a migration `202608310002_access_metrics.sql` no SQL Editor do Supabase para ativar a coleta de acessos.
 - Publicação da Edge Function `admin-users` no Supabase para habilitar convites de administradores pelo painel.
 - Dados científicos validados pelo museu.
-- QR Codes apontando para URLs públicas estáveis.
+- Hospedagem com domínio público estável antes da impressão definitiva dos QR Codes.
 - Áudio real ou integração com TTS.
 
 ### Evoluções de front-end
@@ -262,6 +274,14 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.
 - Adicionado filtro por intervalo de datas, cartões de acessos no período e no dia, além de gráfico de linha responsivo.
 - Os valores iniciam em zero até que seja implantada a coleta agregada de acessos; nenhum dado individual de visitante é exibido ou simulado.
+
+### 2026-08-31 — Coleta agregada de acessos
+
+- Criada a migration `supabase/migrations/202608310002_access_metrics.sql` com as tabelas diárias `site_access_daily` e `specimen_access_daily`.
+- Criada a função segura `record_public_access`, chamada a cada navegação pública. Ela incrementa o total do site e, nas páginas de espécie publicada, também o total daquela espécie.
+- Não são armazenados eventos individuais, IPs, cookies de identificação, dispositivos, sessões ou horários de visitantes: somente a data e o total numérico diário.
+- Conectado o dashboard administrativo às tabelas de acesso, incluindo total do período filtrado, total do dia e gráfico de linha diário.
+- A migration precisa ser executada no SQL Editor do Supabase. A contagem começa a partir desse momento e não cria histórico retroativo.
 
 ### Próxima atualização
 

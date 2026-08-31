@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import heroImage from './assets/museum-hero.png';
 import { AdminPanel } from './components/AdminPanel';
+import { usePublicAccessTracking } from './services/accessMetrics';
 import { usePublicCatalog } from './services/publicCatalog';
 
 const navItems = [['Início', '#/'], ['Catálogo', '#/catalogo'], ['Sobre o museu', '#/sobre'], ['Acessibilidade', '#/acessibilidade']];
@@ -60,6 +61,6 @@ function About() { return <main className="page"><section className="about-hero"
 
 function Accessibility() { const [big, setBig] = useState(false); return <main className={`shell page accessibility ${big ? 'big-text' : ''}`}><p className="eyebrow">Para todas as pessoas</p><h1>Acessibilidade</h1><p className="intro">O PaleoMonte foi projetado para oferecer uma navegação simples, legível e acolhedora durante a visita ao museu.</p><div className="access-controls"><button onClick={() => setBig(!big)}><Icon>A±</Icon>{big ? 'Tamanho padrão' : 'Aumentar texto'}</button><button onClick={() => document.body.classList.toggle('contrast')}><Icon>◐</Icon>Alto contraste</button></div><div className="access-grid"><article><Icon>⌨</Icon><h2>Navegação por teclado</h2><p>Todos os elementos interativos podem ser acessados pelo teclado.</p></article><article><Icon>◖))</Icon><h2>Conteúdo em áudio</h2><p>As espécies contam com controles para ouvir suas descrições.</p></article><article><Icon>◉</Icon><h2>Leitura clara</h2><p>Tipografia legível, contraste adequado e estrutura semântica.</p></article></div></main>; }
 
-function App() { const route = useRoute(); const { specimens, loading, error, reload } = usePublicCatalog(); let content; if (route.startsWith('/catalogo')) content = <Catalog specimens={specimens} loading={loading} error={error}/>; else if (route.startsWith('/fosseis/')) content = <SpecimenPage specimen={specimens.find(s => route.includes(s.slug))} loading={loading}/>; else if (route === '/sobre') content = <About/>; else if (route === '/acessibilidade') content = <Accessibility/>; else if (route === '/admin') content = <AdminPanel onCatalogChanged={reload}/>; else content = <Home specimens={specimens} loading={loading}/>; const isAdmin = route === '/admin'; return <>{!isAdmin && <Header/>}{content}{!isAdmin && <Footer/>}</>; }
+function App() { const route = useRoute(); usePublicAccessTracking(route); const { specimens, loading, error, reload } = usePublicCatalog(); let content; if (route.startsWith('/catalogo')) content = <Catalog specimens={specimens} loading={loading} error={error}/>; else if (route.startsWith('/fosseis/')) content = <SpecimenPage specimen={specimens.find(s => route.includes(s.slug))} loading={loading}/>; else if (route === '/sobre') content = <About/>; else if (route === '/acessibilidade') content = <Accessibility/>; else if (route === '/admin') content = <AdminPanel onCatalogChanged={reload}/>; else content = <Home specimens={specimens} loading={loading}/>; const isAdmin = route === '/admin'; return <>{!isAdmin && <Header/>}{content}{!isAdmin && <Footer/>}</>; }
 
 createRoot(document.getElementById('root')).render(<StrictMode><App/></StrictMode>);

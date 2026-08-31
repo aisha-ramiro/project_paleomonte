@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import Cropper from 'react-easy-crop';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { getAccessMetrics, localDateInput } from '../services/accessMetrics';
 
 const rolesThatCanAccessAdmin = ['admin', 'curator', 'editor', 'contributor'];
 const rolesThatCanManageContent = ['admin', 'curator', 'editor'];
@@ -109,26 +110,47 @@ function StatCard({ label, value, note }) {
   return <article><span>{label}</span><b>{value ?? '—'}</b><small>{note}</small></article>;
 }
 
-function inputDate(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
 function formatShortDate(date) {
   if (!date) return '—';
   const value = new Date(`${date}T12:00:00`);
   return Number.isNaN(value.getTime()) ? '—' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(value);
 }
 
-function AccessLineChart({ startDate, endDate }) {
-  const points = ['32,144', '108,144', '184,144', '260,144', '336,144', '412,144', '488,144', '564,144'];
-  return <div className="access-chart"><div className="access-chart-heading"><div><p className="eyebrow">Acessos no período</p><h2>Evolução dos acessos</h2></div><span>0 acessos</span></div><div className="chart-frame"><svg viewBox="0 0 600 170" role="img" aria-label="Gráfico de linha de acessos. Não há acessos registrados no período selecionado."><line x1="32" x2="570" y1="24" y2="24"/><line x1="32" x2="570" y1="64" y2="64"/><line x1="32" x2="570" y1="104" y2="104"/><line x1="32" x2="570" y1="144" y2="144"/><polyline points={points.join(' ')} fill="none"/><circle cx="32" cy="144" r="3"/><circle cx="564" cy="144" r="3"/></svg><div className="chart-labels"><span>{formatShortDate(startDate)}</span><span>{formatShortDate(endDate)}</span></div><p>Sem acessos registrados para este filtro.</p></div></div>;
+function formatAccessCount(value) {
+  return new Intl.NumberFormat('pt-BR').format(value ?? 0);
+}
+
+function AccessLineChart({ startDate, endDate, series, periodTotal, loading, error }) {
+  const chartSeries = series.length ? series : [{ access_date: startDate, access_count: 0 }, { access_date: endDate, access_count: 0 }];
+  const maxValue = Math.max(...chartSeries.map((item) => item.access_count), 1);
+  const hasRecords = chartSeries.some((item) => item.access_count > 0);
+  const pointFor = (item, index) => {
+    const x = chartSeries.length === 1 ? 301 : 32 + (532 * index) / (chartSeries.length - 1);
+    const y = 144 - ((item.access_count / maxValue) * 104);
+    return { x, y };
+  };
+  const points = chartSeries.map((item, index) => {
+    const point = pointFor(item, index);
+    return `${point.x},${point.y}`;
+  }).join(' ');
+  const message = loading
+    ? 'Carregando acessos...'
+    : error
+      ? 'Aplique a migration de acessos no Supabase para iniciar a coleta.'
+      : !hasRecords
+        ? 'Sem acessos registrados para este filtro.'
+        : null;
+  const ariaLabel = `Gráfico de linha com ${formatAccessCount(periodTotal)} acessos no período selecionado.`;
+
+  return <div className="access-chart"><div className="access-chart-heading"><div><p className="eyebrow">Acessos no período</p><h2>Evolução dos acessos</h2></div><span>{loading ? '…' : `${formatAccessCount(periodTotal)} acessos`}</span></div><div className="chart-frame"><svg viewBox="0 0 600 170" role="img" aria-label={ariaLabel}><line x1="32" x2="570" y1="24" y2="24"/><line x1="32" x2="570" y1="64" y2="64"/><line x1="32" x2="570" y1="104" y2="104"/><line x1="32" x2="570" y1="144" y2="144"/><polyline points={points} fill="none"/>{chartSeries.map((item, index) => { const point = pointFor(item, index); return <circle cx={point.x} cy={point.y} r={index === 0 || index === chartSeries.length - 1 ? '3' : '1.7'} key={item.access_date}/>; })}</svg><div className="chart-labels"><span>{formatShortDate(startDate)}</span><span>{formatShortDate(endDate)}</span></div>{message && <p>{message}</p>}</div></div>;
 }
 
 function AdminDashboard({ roles }) {
   const [summary, setSummary] = useState({ loading: true, specimens: null, categories: null, media: null, qrCodes: null });
+  const [accessMetrics, setAccessMetrics] = useState({ loading: true, periodTotal: 0, todayTotal: 0, series: [], error: null });
   const currentDate = new Date();
-  const [startDate, setStartDate] = useState(inputDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)));
-  const [endDate, setEndDate] = useState(inputDate(currentDate));
+  const [startDate, setStartDate] = useState(() => `${localDateInput().slice(0, 7)}-01`);
+  const [endDate, setEndDate] = useState(localDateInput);
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
 
   useEffect(() => {
@@ -141,7 +163,18 @@ function AdminDashboard({ roles }) {
     return () => { active = false; };
   }, [canManage]);
 
-  return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><section className="access-dashboard"><div className="access-dashboard-head"><div><p className="eyebrow">Acompanhamento do site</p><h2>Acessos</h2></div><div className="date-filter"><label>De<input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)}/></label><label>Até<input type="date" value={endDate} min={startDate} max={inputDate(currentDate)} onChange={(event) => setEndDate(event.target.value)}/></label></div></div><div className="access-dashboard-body"><div className="access-summary"><article><span>Acessos no período</span><b>0</b><small>{formatShortDate(startDate)} a {formatShortDate(endDate)}</small></article><article><span>Acessos hoje</span><b>0</b><small>{formatShortDate(inputDate(currentDate))}</small></article><p>Os números serão preenchidos automaticamente quando a coleta agregada de acessos for ativada.</p></div><AccessLineChart startDate={startDate} endDate={endDate}/></div></section></>;
+  useEffect(() => {
+    let active = true;
+    setAccessMetrics((current) => ({ ...current, loading: true }));
+    getAccessMetrics({ startDate, endDate }).then((metrics) => {
+      if (active) setAccessMetrics({ loading: false, ...metrics });
+    }).catch(() => {
+      if (active) setAccessMetrics({ loading: false, periodTotal: 0, todayTotal: 0, series: [], error: 'unavailable' });
+    });
+    return () => { active = false; };
+  }, [startDate, endDate]);
+
+  return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><section className="access-dashboard"><div className="access-dashboard-head"><div><p className="eyebrow">Acompanhamento do site</p><h2>Acessos</h2></div><div className="date-filter"><label>De<input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)}/></label><label>Até<input type="date" value={endDate} min={startDate} max={localDateInput(currentDate)} onChange={(event) => setEndDate(event.target.value)}/></label></div></div><div className="access-dashboard-body"><div className="access-summary"><article><span>Acessos no período</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.periodTotal)}</b><small>{formatShortDate(startDate)} a {formatShortDate(endDate)}</small></article><article><span>Acessos hoje</span><b>{accessMetrics.loading ? '…' : formatAccessCount(accessMetrics.todayTotal)}</b><small>{formatShortDate(localDateInput(currentDate))}</small></article><p>{accessMetrics.error ? 'A coleta começará após aplicar a migration de acessos no Supabase.' : 'Contadores diários agregados, sem registrar informações individuais de visitantes.'}</p></div><AccessLineChart startDate={startDate} endDate={endDate} series={accessMetrics.series} periodTotal={accessMetrics.periodTotal} loading={accessMetrics.loading} error={accessMetrics.error}/></div></section></>;
 }
 
 function SectionMessage({ title, children }) {
