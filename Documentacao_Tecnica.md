@@ -243,6 +243,12 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - A impressão abre uma visualização própria com o QR Code, o nome da espécie e o endereço de destino. Pela caixa de impressão do navegador também é possível salvar o QR Code como PDF para impressão posterior.
 - A opção exige que a espécie já possua QR Code gerado e que a política de leitura do bucket privado `museum-media` esteja aplicada no Supabase.
 
+### 2026-08-31 — Organização do painel e ficha pública
+
+- Ajustada a estrutura do painel administrativo para manter o menu lateral fixo em telas maiores, enquanto somente a área de conteúdo pode rolar verticalmente.
+- Centralizados os formulários administrativos e os conjuntos de gerenciamento para melhorar a leitura em telas largas.
+- Removida da página pública individual a área de abas com informações complementares genéricas, pois ela ainda não é alimentada pelo formulário administrativo.
+
 ### Próxima atualização
 
 Ao realizar uma nova melhoria, adicione uma subseção com:
