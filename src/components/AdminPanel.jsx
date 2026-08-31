@@ -109,8 +109,26 @@ function StatCard({ label, value, note }) {
   return <article><span>{label}</span><b>{value ?? '—'}</b><small>{note}</small></article>;
 }
 
-function AdminDashboard({ roles, setActive }) {
+function inputDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatShortDate(date) {
+  if (!date) return '—';
+  const value = new Date(`${date}T12:00:00`);
+  return Number.isNaN(value.getTime()) ? '—' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(value);
+}
+
+function AccessLineChart({ startDate, endDate }) {
+  const points = ['32,144', '108,144', '184,144', '260,144', '336,144', '412,144', '488,144', '564,144'];
+  return <div className="access-chart"><div className="access-chart-heading"><div><p className="eyebrow">Acessos no período</p><h2>Evolução dos acessos</h2></div><span>0 acessos</span></div><div className="chart-frame"><svg viewBox="0 0 600 170" role="img" aria-label="Gráfico de linha de acessos. Não há acessos registrados no período selecionado."><line x1="32" x2="570" y1="24" y2="24"/><line x1="32" x2="570" y1="64" y2="64"/><line x1="32" x2="570" y1="104" y2="104"/><line x1="32" x2="570" y1="144" y2="144"/><polyline points={points.join(' ')} fill="none"/><circle cx="32" cy="144" r="3"/><circle cx="564" cy="144" r="3"/></svg><div className="chart-labels"><span>{formatShortDate(startDate)}</span><span>{formatShortDate(endDate)}</span></div><p>Sem acessos registrados para este filtro.</p></div></div>;
+}
+
+function AdminDashboard({ roles }) {
   const [summary, setSummary] = useState({ loading: true, specimens: null, categories: null, media: null, qrCodes: null });
+  const currentDate = new Date();
+  const [startDate, setStartDate] = useState(inputDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)));
+  const [endDate, setEndDate] = useState(inputDate(currentDate));
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
 
   useEffect(() => {
@@ -123,7 +141,7 @@ function AdminDashboard({ roles, setActive }) {
     return () => { active = false; };
   }, [canManage]);
 
-  return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><div className="admin-welcome"><div><p className="eyebrow">Banco preparado</p><h2>O acervo começa quando você estiver pronto.</h2><p>Não há conteúdo científico fictício no banco. Use o painel para inserir rascunhos e publicar somente após validação institucional.</p></div><button className="button green" onClick={() => setActive('Espécies')}>＋ Cadastrar espécie</button></div></>;
+  return <><div className="metrics"><StatCard label="Espécies cadastradas" value={summary.loading ? '…' : summary.specimens} note="Registros no banco"/><StatCard label="Categorias" value={summary.loading ? '…' : summary.categories} note="Organização do acervo"/><StatCard label="Mídias" value={summary.loading ? '…' : summary.media} note="Fotos, áudios e documentos"/><StatCard label="QR Codes" value={summary.loading ? '…' : summary.qrCodes} note={canManage ? 'Códigos registrados' : 'Acesso de curadoria'}/></div><section className="access-dashboard"><div className="access-dashboard-head"><div><p className="eyebrow">Acompanhamento do site</p><h2>Acessos</h2></div><div className="date-filter"><label>De<input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)}/></label><label>Até<input type="date" value={endDate} min={startDate} max={inputDate(currentDate)} onChange={(event) => setEndDate(event.target.value)}/></label></div></div><div className="access-dashboard-body"><div className="access-summary"><article><span>Acessos no período</span><b>0</b><small>{formatShortDate(startDate)} a {formatShortDate(endDate)}</small></article><article><span>Acessos hoje</span><b>0</b><small>{formatShortDate(inputDate(currentDate))}</small></article><p>Os números serão preenchidos automaticamente quando a coleta agregada de acessos for ativada.</p></div><AccessLineChart startDate={startDate} endDate={endDate}/></div></section></>;
 }
 
 function SectionMessage({ title, children }) {
@@ -459,7 +477,7 @@ function AdminShell({ session, roles, onSignOut, onCatalogChanged }) {
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
   const labels = ['Painel', 'Espécies', ...(canManage ? ['Categorias'] : []), ...(roles.includes('admin') ? ['Usuários'] : []), 'Configurações'];
   const primaryRole = ['admin', 'curator', 'editor', 'contributor', 'viewer'].find((role) => roles.includes(role));
-  let content = <AdminDashboard roles={roles} setActive={setActive}/>;
+  let content = <AdminDashboard roles={roles}/>;
   if (active === 'Espécies') content = <SpeciesManager roles={roles} onCatalogChanged={onCatalogChanged}/>;
   if (active === 'Categorias') content = <CategoriesManager/>;
   if (active === 'Usuários') content = <UsersManager/>;

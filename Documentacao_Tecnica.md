@@ -257,6 +257,12 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Cada imagem pode ser movida e ampliada dentro de uma moldura 4:3. O recorte preparado é enviado ao armazenamento, evitando cortes inesperados nas páginas públicas.
 - A galeria na página da espécie permite alternar entre as fotos cadastradas.
 
+### 2026-08-31 — Estrutura visual do painel de acessos
+
+- Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.
+- Adicionado filtro por intervalo de datas, cartões de acessos no período e no dia, além de gráfico de linha responsivo.
+- Os valores iniciam em zero até que seja implantada a coleta agregada de acessos; nenhum dado individual de visitante é exibido ou simulado.
+
 ### Próxima atualização
 
 Ao realizar uma nova melhoria, adicione uma subseção com:
