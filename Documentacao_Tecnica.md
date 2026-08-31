@@ -249,6 +249,13 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Centralizados os formulários administrativos e os conjuntos de gerenciamento para melhorar a leitura em telas largas.
 - Removida da página pública individual a área de abas com informações complementares genéricas, pois ela ainda não é alimentada pelo formulário administrativo.
 
+### 2026-08-31 — Galeria e enquadramento de imagens
+
+- Adicionada a biblioteca `react-easy-crop` para preparar fotos no navegador antes do envio ao Supabase Storage.
+- O cadastro de espécie agora aceita diversas imagens: uma delas pode ser definida como capa do catálogo e as demais ficam disponíveis na galeria pública.
+- Cada imagem pode ser movida e ampliada dentro de uma moldura 4:3. O recorte preparado é enviado ao armazenamento, evitando cortes inesperados nas páginas públicas.
+- A galeria na página da espécie permite alternar entre as fotos cadastradas.
+
 ### Próxima atualização
 
 Ao realizar uma nova melhoria, adicione uma subseção com:

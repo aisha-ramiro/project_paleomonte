@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import Cropper from 'react-easy-crop';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 const rolesThatCanAccessAdmin = ['admin', 'curator', 'editor', 'contributor'];
@@ -28,6 +29,8 @@ const slugify = (value) => value
   .trim()
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/(^-|-$)/g, '');
+
+const catalogImageAspect = 4 / 3;
 
 function AdminBrand() {
   return <a className="admin-brand" href="#/" aria-label="Voltar à página inicial"><span>☼</span><strong>Paleo<br/>Monte</strong></a>;
@@ -127,7 +130,7 @@ function SectionMessage({ title, children }) {
   return <div className="admin-empty"><span>▧</span><h2>{title}</h2><p>{children}</p></div>;
 }
 
-async function uploadSpecimenFile({ specimenId, file, kind, altText, transcript, userId, approve }) {
+async function uploadSpecimenFile({ specimenId, file, kind, altText, transcript, userId, approve, purpose, displayOrder = 0 }) {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
   const storagePath = `specimens/${specimenId}/${crypto.randomUUID()}-${safeName}`;
   const { error: uploadError } = await supabase.storage.from('museum-media').upload(storagePath, file, { contentType: file.type, upsert: false });
@@ -150,9 +153,58 @@ async function uploadSpecimenFile({ specimenId, file, kind, altText, transcript,
   const { error: linkError } = await supabase.from('specimen_media').insert({
     specimen_id: specimenId,
     media_id: media.id,
-    purpose: kind === 'image' ? 'cover' : 'audio_description',
+    purpose: kind === 'image' ? purpose : 'audio_description',
+    display_order: displayOrder,
   });
   if (linkError) throw linkError;
+}
+
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = source;
+  });
+}
+
+function centeredCrop(image) {
+  const imageAspect = image.width / image.height;
+  if (imageAspect > catalogImageAspect) {
+    const height = image.height;
+    const width = height * catalogImageAspect;
+    return { x: (image.width - width) / 2, y: 0, width, height };
+  }
+  const width = image.width;
+  const height = width / catalogImageAspect;
+  return { x: 0, y: (image.height - height) / 2, width, height };
+}
+
+async function createCatalogImage(draft) {
+  const image = await loadImage(draft.previewUrl);
+  const crop = draft.croppedAreaPixels ?? centeredCrop(image);
+  const outputWidth = Math.min(1600, Math.round(crop.width));
+  const outputHeight = Math.round(outputWidth / catalogImageAspect);
+  const canvas = document.createElement('canvas');
+  canvas.width = outputWidth;
+  canvas.height = outputHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+
+  const outputType = draft.file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const blob = await new Promise((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Não foi possível preparar a imagem.')), outputType, .92));
+  const baseName = draft.file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '-');
+  const extension = outputType === 'image/png' ? 'png' : 'jpg';
+  return new File([blob], `${baseName}-catalogo.${extension}`, { type: outputType });
+}
+
+function ImageCropEditor({ draft, onChange }) {
+  const onCropComplete = (_croppedArea, croppedAreaPixels) => onChange({ croppedAreaPixels });
+
+  return <div className="image-crop-editor">
+    <div className="crop-canvas"><Cropper image={draft.previewUrl} crop={draft.crop} zoom={draft.zoom} aspect={catalogImageAspect} minZoom={1} maxZoom={3} onCropChange={(crop) => onChange({ crop })} onZoomChange={(zoom) => onChange({ zoom })} onCropComplete={onCropComplete} showGrid={false}/></div>
+    <div className="crop-controls"><label>Zoom da imagem<input type="range" min="1" max="3" step="0.05" value={draft.zoom} onChange={(event) => onChange({ zoom: Number(event.target.value) })}/></label><p>Arraste a foto dentro da moldura para escolher o enquadramento. A área exibida equivale à imagem do catálogo.</p></div>
+  </div>;
 }
 
 async function createQrCode({ specimenId, slug, userId }) {
@@ -234,23 +286,48 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
   } : emptySpecimen);
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState(specimen?.specimen_categories?.find((item) => item.is_primary)?.category_id ?? specimen?.specimen_categories?.[0]?.category_id ?? '');
-  const [imageFile, setImageFile] = useState(null);
+  const [imageDrafts, setImageDrafts] = useState([]);
+  const [activeImageId, setActiveImageId] = useState(null);
   const [audioFile, setAudioFile] = useState(null);
-  const [altText, setAltText] = useState('');
   const [transcript, setTranscript] = useState('');
   const [generateQr, setGenerateQr] = useState(!specimen);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
+  const hasExistingCover = specimen?.specimen_media?.some((media) => media.purpose === 'cover') ?? false;
+  const activeImage = imageDrafts.find((draft) => draft.id === activeImageId) ?? imageDrafts[0] ?? null;
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const updateImage = (id, changes) => setImageDrafts((current) => current.map((draft) => draft.id === id ? { ...draft, ...changes } : draft));
+  const selectCover = (id) => setImageDrafts((current) => current.map((draft) => ({ ...draft, isCover: draft.id === id })));
+  const removeImage = (id) => {
+    setImageDrafts((current) => {
+      const removed = current.find((draft) => draft.id === id);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      const next = current.filter((draft) => draft.id !== id);
+      if (activeImageId === id) setActiveImageId(next[0]?.id ?? null);
+      return next;
+    });
+  };
+  const addImages = (event) => {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
+    const firstNewImageId = crypto.randomUUID();
+    setImageDrafts((current) => {
+      const shouldSelectCover = !hasExistingCover && !current.some((draft) => draft.isCover);
+      const drafts = files.map((file, index) => ({ id: index === 0 ? firstNewImageId : crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file), altText: '', crop: { x: 0, y: 0 }, zoom: 1, croppedAreaPixels: null, isCover: shouldSelectCover && index === 0 }));
+      return [...current, ...drafts];
+    });
+    setActiveImageId(firstNewImageId);
+    event.target.value = '';
+  };
 
   useEffect(() => { supabase.from('categories').select('id, name, slug').eq('is_active', true).order('name').then(({ data }) => setCategories(data ?? [])); }, []);
 
   const submit = async (event) => {
     event.preventDefault();
     if (canManage && !categoryId) { setError('Selecione uma categoria para a espécie.'); return; }
-    if (imageFile && canPublish && form.status === 'published' && !altText.trim()) { setError('Informe o texto alternativo antes de publicar uma imagem.'); return; }
+    if (imageDrafts.some((draft) => !draft.altText.trim()) && canPublish && form.status === 'published') { setError('Informe a descrição de cada imagem antes de publicar a espécie.'); return; }
     if (audioFile && canPublish && form.status === 'published' && !transcript.trim()) { setError('Informe a transcrição antes de publicar um áudio.'); return; }
     setSaving(true); setError('');
     const { data: { user } } = await supabase.auth.getUser();
@@ -268,7 +345,17 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
       }
     }
     const approveMedia = canPublish && form.status === 'published';
-    if (imageFile) { try { await uploadSpecimenFile({ specimenId: data.id, file: imageFile, kind: 'image', altText: altText.trim(), userId: user.id, approve: approveMedia }); } catch (mediaError) { warnings.push(`imagem: ${mediaError.message}`); } }
+    const chosenCover = imageDrafts.find((draft) => draft.isCover);
+    if (chosenCover && hasExistingCover) {
+      const { error: coverError } = await supabase.from('specimen_media').update({ purpose: 'gallery' }).eq('specimen_id', data.id).eq('purpose', 'cover');
+      if (coverError) warnings.push(`imagem de capa: ${coverError.message}`);
+    }
+    for (const [index, draft] of imageDrafts.entries()) {
+      try {
+        const catalogImage = await createCatalogImage(draft);
+        await uploadSpecimenFile({ specimenId: data.id, file: catalogImage, kind: 'image', altText: draft.altText.trim(), userId: user.id, approve: approveMedia, purpose: draft.isCover ? 'cover' : 'gallery', displayOrder: index });
+      } catch (mediaError) { warnings.push(`imagem ${index + 1}: ${mediaError.message}`); }
+    }
     if (audioFile) { try { await uploadSpecimenFile({ specimenId: data.id, file: audioFile, kind: 'audio', transcript: transcript.trim(), userId: user.id, approve: approveMedia }); } catch (mediaError) { warnings.push(`áudio: ${mediaError.message}`); } }
     if (generateQr && canManage) { try { await createQrCode({ specimenId: data.id, slug: payload.slug, userId: user.id }); } catch (qrError) { warnings.push(`QR Code: ${qrError.message}`); } }
     setSaving(false);
@@ -276,7 +363,15 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
   };
 
   const currentQrCode = getQrCode(specimen);
-  return <form className="admin-form specimen-form" onSubmit={submit}><div className="form-heading"><div><p className="eyebrow">{specimen ? 'Edição completa' : 'Novo registro'}</p><h2>{specimen ? 'Editar espécie' : 'Cadastrar espécie'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancelar</button></div><div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div><fieldset className="asset-fieldset"><legend>Mídias da espécie</legend><p>Inclua a imagem de capa e, se houver, o áudio de descrição no mesmo cadastro.</p><div className="form-grid"><label>Imagem de capa<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}/></label><label>Texto alternativo da imagem<textarea rows="3" value={altText} onChange={(event) => setAltText(event.target.value)} placeholder="Descreva a imagem para leitores de tela."/></label><label>Áudio de descrição<input type="file" accept="audio/mpeg,audio/ogg,audio/wav" onChange={(event) => setAudioFile(event.target.files?.[0] ?? null)}/></label><label>Transcrição do áudio<textarea rows="3" value={transcript} onChange={(event) => setTranscript(event.target.value)} placeholder="Obrigatória antes da aprovação do áudio."/></label></div></fieldset>{canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend>{currentQrCode?.image_path && <p>Há um QR Code ativo (versão {currentQrCode.version}). Depois de salvar, use “Imprimir QR Code” na listagem de espécies para visualizar, imprimir ou salvar em PDF.</p>}<label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}{error && <p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="button green" disabled={saving}>{saving ? 'Salvando cadastro...' : 'Salvar espécie, mídia e QR Code'}</button></div></form>;
+  return <form className="admin-form specimen-form" onSubmit={submit}>
+    <div className="form-heading"><div><p className="eyebrow">{specimen ? 'Edição completa' : 'Novo registro'}</p><h2>{specimen ? 'Editar espécie' : 'Cadastrar espécie'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancelar</button></div>
+    <div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div>
+    <fieldset className="asset-fieldset"><legend>Fotos da espécie</legend><p>Selecione quantas fotos desejar. Ajuste cada uma dentro da moldura antes de salvar: o enquadramento 4:3 será exatamente o usado no catálogo.</p><label className="upload-label">Adicionar fotos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addImages}/></label>{imageDrafts.length > 0 && <div className="image-workspace"><div className="image-draft-list">{imageDrafts.map((draft, index) => <article className={draft.id === activeImage?.id ? 'active' : ''} key={draft.id}><button type="button" onClick={() => setActiveImageId(draft.id)}><img src={draft.previewUrl} alt=""/><span>Foto {index + 1}{draft.isCover ? ' · Capa' : ''}</span></button><button type="button" className="image-draft-remove" onClick={() => removeImage(draft.id)} aria-label={`Remover foto ${index + 1}`}>×</button></article>)}</div>{activeImage && <div className="image-editing"><h3>Enquadrar foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1}</h3><ImageCropEditor draft={activeImage} onChange={(changes) => updateImage(activeImage.id, changes)}/><label>Descrição acessível desta foto *<textarea rows="3" value={activeImage.altText} onChange={(event) => updateImage(activeImage.id, { altText: event.target.value })} placeholder="Descreva o que aparece nesta imagem."/></label><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div>}</div>}<p className="helper-text">A primeira foto é escolhida como capa automaticamente quando a espécie ainda não possui uma. Ao selecionar outra capa, a anterior permanece na galeria.</p></fieldset>
+    <fieldset className="asset-fieldset"><legend>Áudio de descrição</legend><div className="form-grid"><label>Arquivo de áudio<input type="file" accept="audio/mpeg,audio/ogg,audio/wav" onChange={(event) => setAudioFile(event.target.files?.[0] ?? null)}/></label><label>Transcrição do áudio<textarea rows="3" value={transcript} onChange={(event) => setTranscript(event.target.value)} placeholder="Obrigatória antes da aprovação do áudio."/></label></div></fieldset>
+    {canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend>{currentQrCode?.image_path && <p>Há um QR Code ativo (versão {currentQrCode.version}). Depois de salvar, use “Imprimir QR Code” na listagem de espécies para visualizar, imprimir ou salvar em PDF.</p>}<label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <div className="form-actions"><button className="button green" disabled={saving}>{saving ? 'Salvando cadastro...' : 'Salvar espécie, fotos, áudio e QR Code'}</button></div>
+  </form>;
 }
 
 function SpeciesManager({ roles, onCatalogChanged }) {
@@ -289,7 +384,7 @@ function SpeciesManager({ roles, onCatalogChanged }) {
 
   const load = async () => {
     setLoading(true);
-    const { data, error: loadError } = await supabase.from('specimens').select('*, specimen_categories(category_id, is_primary), qr_codes(id, image_path, public_path, status, version)').order('updated_at', { ascending: false });
+    const { data, error: loadError } = await supabase.from('specimens').select('*, specimen_categories(category_id, is_primary), specimen_media(purpose, display_order), qr_codes(id, image_path, public_path, status, version)').order('updated_at', { ascending: false });
     setLoading(false);
     if (loadError) { setError(loadError.message); return; }
     setSpecimens(data ?? []);

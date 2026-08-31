@@ -35,18 +35,21 @@ function Catalog({ specimens, loading, error }) { const route = useRoute(); cons
 function AudioPlayer() { const [playing, setPlaying] = useState(false); return <div className="audio"><button onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar descrição' : 'Ouvir descrição'}>{playing ? 'Ⅱ' : '▶'}</button><span>{playing ? 'Reproduzindo descrição' : 'Ouvir descrição'}</span><div className="audio-line"><i/></div><small>0:00 / 1:45</small></div>; }
 
 function SpecimenPage({ specimen, loading }) {
+  const [selectedImageId, setSelectedImageId] = useState(null);
+  useEffect(() => setSelectedImageId(null), [specimen?.id]);
   if (loading) return <main className="shell page"><div className="empty">Carregando espécie...</div></main>;
   if (!specimen) return <main className="shell page"><h1>Espécime não encontrado</h1><a className="button green" href="#/catalogo">Voltar ao catálogo</a></main>;
 
-  const image = specimen.image || heroImage;
   const imageMedia = specimen.media.filter((item) => item.type === 'image' && item.url);
+  const selectedImage = imageMedia.find((media) => media.id === selectedImageId) ?? imageMedia.find((media) => media.purpose === 'cover') ?? imageMedia[0] ?? null;
+  const image = selectedImage?.url || specimen.image || heroImage;
 
   return <main className="shell page specimen">
     <div className="crumb">Início <b>›</b> Catálogo <b>›</b> {specimen.name}</div>
     <a className="back-link" href="#/catalogo">← Voltar ao catálogo</a>
     <div className="specimen-head"><div><p className={`pill ${specimen.category.toLowerCase().replaceAll(' ', '-')}`}>{specimen.category}</p><h1>{specimen.name}</h1>{specimen.commonName && <p className="latin">{specimen.commonName}</p>}<p><b>Período:</b> {specimen.period} <span className="dot">•</span> <b>Local de descoberta:</b> {specimen.location}</p></div><button className="save-button" aria-label="Salvar espécie">♡</button></div>
-    <div className="detail-photo"><img src={image} alt={specimen.imageAlt || `Imagem temporária de ${specimen.name}`}/></div>
-    {imageMedia.length > 1 && <div className="thumbs">{imageMedia.map((media, index) => <button className={index === 0 ? 'selected' : ''} key={media.id}><img src={media.url} alt={media.alt_text || ''}/></button>)}</div>}
+    <div className="detail-photo"><img src={image} alt={selectedImage?.alt_text || specimen.imageAlt || `Imagem temporária de ${specimen.name}`}/></div>
+    {imageMedia.length > 1 && <div className="thumbs">{imageMedia.map((media) => <button className={media.id === selectedImage?.id ? 'selected' : ''} key={media.id} onClick={() => setSelectedImageId(media.id)} aria-label={`Ver ${media.alt_text || 'foto da espécie'}`}><img src={media.url} alt=""/></button>)}</div>}
     <section className="about-specimen"><h2>Sobre a espécie</h2><p>{specimen.description}</p></section>
     <div className="fact-grid"><div><Icon>♧</Icon><b>Tipo</b><span>{specimen.type}</span></div><div><Icon>⌁</Icon><b>Comprimento</b><span>{specimen.length}</span></div><div><Icon>◉</Icon><b>Dieta</b><span>{specimen.diet}</span></div><div><Icon>✥</Icon><b>Era geológica</b><span>{specimen.era || 'Não informado'}</span></div></div>
     <section className="listen"><h2>Ouça a descrição</h2><p>Quando um áudio aprovado for adicionado a esta espécie, ele poderá ser reproduzido aqui.</p><AudioPlayer/></section>
