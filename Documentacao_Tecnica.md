@@ -241,6 +241,7 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Ampliado o formulário de espécie com código do museu, dados geológicos, detalhes da descoberta, coordenadas, informações adicionais e destaque na página inicial.
 - Adicionado o comando **Imprimir QR Code** ao lado de Editar e Excluir na listagem de espécies.
 - A impressão abre uma visualização própria com o QR Code, o nome da espécie e o endereço de destino. Pela caixa de impressão do navegador também é possível salvar o QR Code como PDF para impressão posterior.
+- Atualizado o cabeçalho da visualização de impressão para `Museu de Paleontologia de Monte Alto - SP`.
 - A opção exige que a espécie já possua QR Code gerado e que a política de leitura do bucket privado `museum-media` esteja aplicada no Supabase.
 
 ### 2026-08-31 — Organização do painel e ficha pública
