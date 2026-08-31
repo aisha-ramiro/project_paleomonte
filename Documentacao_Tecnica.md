@@ -48,7 +48,7 @@ Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. A 
 | Detalhe do espécime | `#/fosseis/:slug` | Informações demonstrativas, imagem principal, mini-galeria, atributos, áudio visual e abas de conteúdo. |
 | Sobre o Museu | `#/sobre` | Contexto institucional e apresentação do PaleoMonte. |
 | Acessibilidade | `#/acessibilidade` | Controles demonstrativos para tamanho de texto e alto contraste, além da apresentação dos recursos. |
-| Painel administrativo | `#/admin` | Login Supabase, leitura de papéis e módulos de gestão de espécies, categorias, mídias e QR Codes. |
+| Painel administrativo | `#/admin` | Login Supabase e fluxo único para cadastrar espécie, categoria, mídias e QR Code. |
 
 Exemplo de rota individual atualmente disponível:
 
@@ -71,10 +71,10 @@ Exemplo de rota individual atualmente disponível:
 - Painel administrativo de demonstração com métricas e ações rápidas não persistentes.
 - Login administrativo por e-mail e senha via Supabase Auth.
 - Proteção do painel por sessão e papel de acesso.
-- Cadastro, edição e exclusão de espécies para os papéis permitidos.
-- Cadastro de categorias.
-- Envio de mídias para o bucket privado, com vínculo a uma espécie e estado pendente.
-- Registro da rota estável de QR Codes.
+- Cadastro e edição de espécies, com categoria, imagem, áudio e QR Code no mesmo formulário.
+- Cadastro, edição e exclusão de categorias.
+- Envio de mídias para o bucket privado, com vínculo automático à espécie e estado pendente/aprovado conforme o papel e o status.
+- Geração e armazenamento do arquivo de QR Code durante o cadastro da espécie.
 
 ## 5. Conteúdo demonstrativo
 
@@ -224,6 +224,15 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - O registro de teste publicado no banco passa a ser a espécie exibida pela aplicação.
 - Adicionadas edição e exclusão de categorias no painel.
 - Adicionada a área de administradores, com convite por e-mail implementado em Edge Function segura e versionada.
+
+### 2026-08-31 — Cadastro unificado de espécie
+
+- Unificados os fluxos de espécie, categoria, mídia e QR Code na tela de cadastro/edição de espécies.
+- Removidas do menu administrativo as páginas independentes de mídias e QR Codes.
+- Adicionado seletor de categoria cadastrada, obrigatório para equipe editorial no cadastro de espécie.
+- Adicionados campos para imagem de capa, texto alternativo, áudio de descrição e transcrição.
+- Adicionada geração automática de QR Code e armazenamento de sua imagem privada no bucket `museum-media`.
+- Criada migration complementar para permitir que a equipe editorial consulte arquivos privados do acervo.
 
 ### Próxima atualização
 

@@ -7,6 +7,7 @@ Esta pasta contém a infraestrutura de dados do PaleoMonte. A migration inicial 
 1. Crie um projeto em [Supabase](https://supabase.com/dashboard).
 2. No projeto, abra **SQL Editor**.
 3. Copie e execute o conteúdo de `migrations/202608300001_initial_schema.sql`.
+   Para projetos que já executaram essa primeira migration, execute também cada migration posterior pelo SQL Editor, em ordem numérica.
 4. No Supabase Auth, crie ou convide o primeiro usuário administrativo.
 5. Copie o UUID desse usuário e atribua o papel de administrador:
 

@@ -555,6 +555,10 @@ create policy "public can read approved published media files"
     )
   );
 
+create policy "content managers can read museum media files"
+  on storage.objects for select
+  using (bucket_id = 'museum-media' and public.is_content_manager());
+
 create policy "content authors can upload museum media files"
   on storage.objects for insert
   with check (bucket_id = 'museum-media' and public.is_content_author());
