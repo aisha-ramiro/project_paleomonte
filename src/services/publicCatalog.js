@@ -34,6 +34,8 @@ function mapSpecimen(row, urls) {
     category: primaryCategory(row),
     period: row.geological_period ?? 'Período não informado',
     era: row.geological_era,
+    discoveryYear: row.discovery_year,
+    discoveredBy: row.discovered_by,
     type: row.specimen_type ?? 'Não informado',
     diet: row.diet ?? 'Não informado',
     length: row.length_meters ? `${row.length_meters} metros` : 'Não informado',
@@ -63,7 +65,7 @@ export function usePublicCatalog() {
         .from('specimens')
         .select(`
           id, scientific_name, common_name, slug, summary, description,
-          geological_period, geological_era, discovery_location, specimen_type, diet, length_meters,
+          geological_period, geological_era, discovery_location, discovery_year, discovered_by, specimen_type, diet, length_meters,
           specimen_categories(is_primary, categories(name, slug)),
           specimen_media(purpose, display_order, media(id, storage_bucket, storage_path, type, status, alt_text))
         `)

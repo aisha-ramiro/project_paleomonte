@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useState } from 'react';
+import { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import heroImage from './assets/museum-hero.png';
@@ -33,7 +33,100 @@ function Home({ specimens, loading }) { const [query, setQuery] = useState(''); 
 
 function Catalog({ specimens, loading, error }) { const route = useRoute(); const fromUrl = new URLSearchParams(route.split('?')[1] || '').get('q') || ''; const [query, setQuery] = useState(fromUrl); const [category, setCategory] = useState('Todos'); const [period, setPeriod] = useState('Todos'); const items = useMemo(() => specimens.filter(s => `${s.name} ${s.category} ${s.period}`.toLowerCase().includes(query.toLowerCase()) && (category === 'Todos' || s.category === category) && (period === 'Todos' || s.period === period)), [specimens, query, category, period]); return <main className="shell page"><div className="crumb">Início <b>›</b> Catálogo</div><div className="catalog-heading"><div><p className="eyebrow">Explore o acervo</p><h1>Catálogo</h1></div><span>{loading ? 'Carregando...' : `${items.length} itens encontrados`}</span></div><div className="catalog-controls"><SearchBox value={query} onChange={setQuery}/><select value={category} onChange={e => setCategory(e.target.value)} aria-label="Filtrar por categoria"><option>Todos</option>{[...new Set(specimens.map(s => s.category))].map(x => <option key={x}>{x}</option>)}</select><select value={period} onChange={e => setPeriod(e.target.value)} aria-label="Filtrar por período"><option>Todos</option>{[...new Set(specimens.map(s => s.period))].map(x => <option key={x}>{x}</option>)}</select></div><div className="filter-note"><Icon>☷</Icon> Filtros aplicados automaticamente ao catálogo</div>{loading ? <div className="empty">Carregando espécies publicadas...</div> : <><div className="cards-grid catalog-grid">{items.map(item => <FossilCard key={item.id} item={item}/>)}</div>{items.length === 0 && <div className="empty">{error || 'Nenhum fóssil publicado foi encontrado.'}</div>}</>}</main>; }
 
-function AudioPlayer() { const [playing, setPlaying] = useState(false); return <div className="audio"><button onClick={() => setPlaying(!playing)} aria-label={playing ? 'Pausar descrição' : 'Ouvir descrição'}>{playing ? 'Ⅱ' : '▶'}</button><span>{playing ? 'Reproduzindo descrição' : 'Ouvir descrição'}</span><div className="audio-line"><i/></div><small>0:00 / 1:45</small></div>; }
+function narrationValue(value) {
+  return value === null || value === undefined || String(value).trim() === '' ? 'Não informado' : String(value).trim();
+}
+
+function specimenNarration(specimen) {
+  return [
+    `Nome popular. ${narrationValue(specimen.commonName)}.`,
+    `Nome científico. ${narrationValue(specimen.name)}.`,
+    `Tipo. ${narrationValue(specimen.type)}.`,
+    `Período geológico. ${narrationValue(specimen.period)}.`,
+    `Era geológica. ${narrationValue(specimen.era)}.`,
+    `Local da descoberta. ${narrationValue(specimen.location)}.`,
+    `Ano da descoberta. ${narrationValue(specimen.discoveryYear)}.`,
+    `Descoberto por. ${narrationValue(specimen.discoveredBy)}.`,
+    `Dieta. ${narrationValue(specimen.diet)}.`,
+    `Comprimento em metros. ${narrationValue(specimen.length)}.`,
+    `Descrição. ${narrationValue(specimen.description)}`,
+  ].join(' ');
+}
+
+function AudioPlayer({ text }) {
+  const [status, setStatus] = useState('idle');
+  const utteranceRef = useRef(null);
+  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+
+  useEffect(() => () => {
+    utteranceRef.current = null;
+    if (supported) window.speechSynthesis.cancel();
+  }, [supported, text]);
+
+  const play = () => {
+    if (!supported || !text) return;
+    const synth = window.speechSynthesis;
+
+    if (status === 'speaking') {
+      synth.pause();
+      setStatus('paused');
+      return;
+    }
+
+    if (status === 'paused') {
+      synth.resume();
+      setStatus('speaking');
+      return;
+    }
+
+    utteranceRef.current = null;
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 0.95;
+    const voices = synth.getVoices();
+    const portugueseVoice = voices.find((voice) => voice.lang.toLowerCase() === 'pt-br')
+      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'));
+    if (portugueseVoice) utterance.voice = portugueseVoice;
+    utteranceRef.current = utterance;
+    utterance.onstart = () => {
+      if (utteranceRef.current === utterance) setStatus('speaking');
+    };
+    utterance.onend = () => {
+      if (utteranceRef.current === utterance) {
+        utteranceRef.current = null;
+        setStatus('idle');
+      }
+    };
+    utterance.onerror = () => {
+      if (utteranceRef.current === utterance) {
+        utteranceRef.current = null;
+        setStatus('error');
+      }
+    };
+    synth.speak(utterance);
+    setStatus('speaking');
+  };
+
+  const label = !supported
+    ? 'Leitura em voz alta não disponível neste navegador'
+    : status === 'speaking'
+      ? 'Pausar leitura'
+      : status === 'paused'
+        ? 'Continuar leitura'
+        : 'Ouvir descrição';
+  const textLabel = !supported
+    ? 'Leitura não disponível neste navegador'
+    : status === 'speaking'
+      ? 'Lendo informações da espécie'
+      : status === 'paused'
+        ? 'Leitura pausada'
+        : status === 'error'
+          ? 'Não foi possível iniciar a leitura'
+          : 'Ouvir descrição';
+
+  return <div className="audio"><button onClick={play} disabled={!supported || !text} aria-label={label}>{status === 'speaking' ? 'Ⅱ' : '▶'}</button><span aria-live="polite">{textLabel}</span><div className="audio-line" aria-hidden="true"><i className={status === 'speaking' ? 'playing' : ''}/></div><small>{supported ? 'Leitura nativa em português' : 'Sem suporte de voz'}</small></div>;
+}
 
 function SpecimenPage({ specimen, loading }) {
   const [selectedImageId, setSelectedImageId] = useState(null);
@@ -44,6 +137,7 @@ function SpecimenPage({ specimen, loading }) {
   const imageMedia = specimen.media.filter((item) => item.type === 'image' && item.url);
   const selectedImage = imageMedia.find((media) => media.id === selectedImageId) ?? imageMedia.find((media) => media.purpose === 'cover') ?? imageMedia[0] ?? null;
   const image = selectedImage?.url || specimen.image || heroImage;
+  const narration = specimenNarration(specimen);
 
   return <main className="shell page specimen">
     <div className="crumb">Início <b>›</b> Catálogo <b>›</b> {specimen.name}</div>
@@ -53,7 +147,7 @@ function SpecimenPage({ specimen, loading }) {
     {imageMedia.length > 1 && <div className="thumbs">{imageMedia.map((media) => <button className={media.id === selectedImage?.id ? 'selected' : ''} key={media.id} onClick={() => setSelectedImageId(media.id)} aria-label={`Ver ${media.alt_text || 'foto da espécie'}`}><img src={media.url} alt=""/></button>)}</div>}
     <section className="about-specimen"><h2>Sobre a espécie</h2><p>{specimen.description}</p></section>
     <div className="fact-grid"><div><Icon>♧</Icon><b>Tipo</b><span>{specimen.type}</span></div><div><Icon>⌁</Icon><b>Comprimento</b><span>{specimen.length}</span></div><div><Icon>◉</Icon><b>Dieta</b><span>{specimen.diet}</span></div><div><Icon>✥</Icon><b>Era geológica</b><span>{specimen.era || 'Não informado'}</span></div></div>
-    <section className="listen"><h2>Ouça a descrição</h2><p>Quando um áudio aprovado for adicionado a esta espécie, ele poderá ser reproduzido aqui.</p><AudioPlayer/></section>
+    <section className="listen"><h2>Ouça a descrição</h2><p>Aperte play para ouvir as informações desta espécie em português.</p><AudioPlayer text={narration}/></section>
   </main>;
 }
 

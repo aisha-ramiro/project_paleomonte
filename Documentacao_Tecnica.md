@@ -69,7 +69,7 @@ Exemplo de rota individual atualmente disponível:
 - Filtros locais por categoria e período.
 - Cards clicáveis que levam à página individual do espécime.
 - Interface visual de galeria de imagens.
-- Controle visual de reprodução de áudio.
+- Leitura em voz alta nativa da ficha pública, acionada por play.
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
 - Dashboard administrativo com métricas do acervo e acompanhamento agregado de acessos por período.
@@ -175,7 +175,7 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Publicação da Edge Function `admin-users` no Supabase para habilitar convites de administradores pelo painel.
 - Dados científicos validados pelo museu.
 - Hospedagem com domínio público estável antes da impressão definitiva dos QR Codes.
-- Áudio real ou integração com TTS.
+- Narração institucional produzida em áudio, caso futuramente seja desejada uma voz fixa e padronizada em todos os dispositivos.
 
 ### Evoluções de front-end
 
@@ -284,6 +284,14 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - A migration precisa ser executada no SQL Editor do Supabase. A contagem começa a partir desse momento e não cria histórico retroativo.
 - Adicionado ao filtro do dashboard o seletor de escopo: **Todos** mostra o site geral; ao selecionar uma espécie, os cartões e o gráfico passam a apresentar somente os acessos dela.
 - O painel atualiza os números novamente ao recuperar o foco, exibindo acessos feitos em outra aba sem exigir a alteração manual do filtro.
+
+### 2026-08-31 — Leitura nativa da ficha da espécie
+
+- Substituído o controle visual de áudio pela Web Speech API nativa do navegador, sem envio de textos para uma IA, sem chave externa e sem criar arquivos de áudio.
+- A leitura só é iniciada após o visitante apertar play e usa `pt-BR`, priorizando uma voz em português disponível no dispositivo.
+- A narração segue a ordem: nome popular, nome científico, tipo, período geológico, era geológica, local, ano e responsável pela descoberta, dieta, comprimento e descrição.
+- Adicionados à consulta pública os campos de ano e responsável pela descoberta, para que sejam incluídos na leitura.
+- O botão permite pausar e continuar a leitura. Ao sair da página, a síntese é cancelada para evitar que a voz continue em outra espécie.
 
 ### Próxima atualização
 
