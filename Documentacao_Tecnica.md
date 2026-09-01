@@ -77,7 +77,7 @@ Exemplo de rota individual atualmente disponível:
 - Filtro do dashboard por intervalo e por espécie, com atualização ao retornar ao painel.
 - Login administrativo por e-mail e senha via Supabase Auth.
 - Proteção do painel por sessão e papel de acesso.
-- Cadastro e edição de espécies, com categoria, imagem, áudio e QR Code no mesmo formulário.
+- Cadastro e edição de espécies, com categoria, imagens e QR Code no mesmo formulário.
 - Cadastro, edição e exclusão de categorias.
 - Envio de mídias para o bucket privado, com vínculo automático à espécie e estado pendente/aprovado conforme o papel e o status.
 - Geração e armazenamento do arquivo de QR Code durante o cadastro da espécie.
@@ -214,7 +214,7 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 
 - Adicionada a migration inicial em `supabase/migrations/202608300001_initial_schema.sql`.
 - Modelados perfis, papéis de acesso, espécimes, categorias, referências, mídias, QR Codes e registros de auditoria.
-- Implementadas políticas de segurança RLS com os papéis `admin`, `curator`, `editor`, `contributor` e `viewer`.
+- Implementadas políticas de segurança RLS; estes papéis foram posteriormente consolidados em Administrador e Operador.
 - Configurado o bucket privado `museum-media`, com regras para exibir apenas mídias aprovadas ligadas a espécies publicadas.
 - Incluídos requisitos de acessibilidade de mídia: texto alternativo em imagens e transcrição em áudios aprovados.
 - Adicionada a biblioteca oficial `@supabase/supabase-js` e o cliente condicional em `src/lib/supabase.js`.
@@ -272,6 +272,20 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Cada imagem pode ser movida e ampliada dentro de uma moldura 4:3. O recorte preparado é enviado ao armazenamento, evitando cortes inesperados nas páginas públicas.
 - A galeria na página da espécie permite alternar entre as fotos cadastradas.
 
+### 2026-09-01 — Gestão das fotos já cadastradas
+
+- O formulário de edição de espécie passou a carregar as fotos já vinculadas ao registro, com URL temporária segura para visualização no painel.
+- Fotos existentes são identificadas como **Salvas** e podem ser selecionadas como capa ou removidas diretamente no formulário.
+- Ao salvar uma remoção, o vínculo da foto com a espécie é excluído; o arquivo e seus metadados também são removidos quando não houver uso da mesma mídia em outra espécie.
+- Fotos novas mantêm o fluxo de enquadramento 4:3; para reenquadrar uma foto já salva, ela deve ser substituída por uma nova versão.
+
+### 2026-09-01 — Simplificação de mídia e acesso administrativo
+
+- Removido do formulário de criação e edição de espécies o envio de áudio e sua transcrição, pois a página pública utiliza leitura nativa pela Web Speech API.
+- Mantida a estrutura de mídia no banco para possível uso institucional futuro, sem exibir esse fluxo no painel atual.
+- Removido o botão de acesso administrativo da navegação principal pública.
+- Substituído o link textual do rodapé por um ícone vetorial preenchido de prancheta em branco, com identificação acessível de **Painel Administrativo** e posicionamento responsivo.
+
 ### 2026-08-31 — Estrutura visual do painel de acessos
 
 - Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.
@@ -294,6 +308,25 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - A leitura só é iniciada após o visitante apertar play e usa `pt-BR`, priorizando uma voz em português disponível no dispositivo.
 - A narração segue a ordem visual da ficha: nome científico, nome popular, período geológico, local da descoberta, descrição, tipo, comprimento, dieta e era geológica.
 - O botão permite pausar e continuar a leitura. Ao sair da página, a síntese é cancelada para evitar que a voz continue em outra espécie.
+
+### 2026-08-31 — Níveis Administrador e Operador
+
+- Consolidado o acesso do painel em dois níveis: **Administrador** e **Operador**.
+- Ambos podem cadastrar, editar, publicar e excluir itens do acervo, incluindo espécies, categorias, mídias e QR Codes.
+- Somente Administradores visualizam a área **Usuários** e podem convidar pessoas, escolher seu nível, alterá-lo posteriormente ou excluir contas.
+- Criada a migration `supabase/migrations/202608310003_user_levels.sql`, que converte os papéis editoriais antigos para Operador, preserva Administradores e garante um único nível por usuário.
+- Atualizada a Edge Function `supabase/functions/admin-users/index.ts` com convites por nível, edição e exclusão segura de usuários. Ela impede que uma pessoa altere ou exclua a própria conta e preserva pelo menos um Administrador.
+- Para ativar em produção, é necessário executar a nova migration no SQL Editor e publicar novamente a Edge Function `admin-users`.
+
+### 2026-08-31 — Convite e criação de senha
+
+- Criada a rota de autenticação `/definir-senha`, dedicada ao primeiro acesso e à redefinição de senha.
+- Os novos convites enviados pela Edge Function agora usam essa rota como retorno seguro, permitindo que a pessoa convidada defina a própria senha antes de entrar no painel.
+- Adicionada a opção **Primeiro acesso ou esqueceu a senha?** à tela de login, com envio de link seguro pelo Supabase Auth.
+- A rota de senha não utiliza hash routing, evitando conflito com os tokens recebidos nos links de autenticação do Supabase.
+- Convites novos passam a marcar o primeiro acesso e o painel exige a definição da senha antes de liberar o conteúdo administrativo.
+- Documentadas as URLs de redirecionamento necessárias em **Authentication → URL Configuration**. A Edge Function precisa ser publicada novamente para que os próximos convites usem este fluxo.
+- Aprimorada a exibição de erros das Edge Functions no painel, para que falhas de envio, configuração de redirecionamento ou atribuição de nível sejam identificadas diretamente na interface.
 
 ### Próxima atualização
 
