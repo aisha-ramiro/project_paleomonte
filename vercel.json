@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/definir-senha",
+      "destination": "/index.html"
+    }
+  ]
+}

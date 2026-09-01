@@ -286,6 +286,12 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Removido o botão de acesso administrativo da navegação principal pública.
 - Substituído o link textual do rodapé por um ícone vetorial preenchido de prancheta em branco, com identificação acessível de **Painel Administrativo** e posicionamento responsivo.
 
+### 2026-09-01 — Preparação para hospedagem na Vercel
+
+- Adicionado `vercel.json` com redirecionamento interno de `/definir-senha` para a aplicação React.
+- Essa regra mantém funcional o retorno dos e-mails de convite e redefinição de senha do Supabase em um domínio público.
+- A hospedagem usa a compilação padrão `npm run build` e o diretório de saída `dist/` do Vite.
+
 ### 2026-08-31 — Estrutura visual do painel de acessos
 
 - Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.
