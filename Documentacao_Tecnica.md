@@ -292,6 +292,12 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Essa regra mantém funcional o retorno dos e-mails de convite e redefinição de senha do Supabase em um domínio público.
 - A hospedagem usa a compilação padrão `npm run build` e o diretório de saída `dist/` do Vite.
 
+### 2026-09-01 — Consulta protegida de acessos no painel
+
+- Adicionada a migration `supabase/migrations/202609010001_access_metrics_dashboard_rpc.sql`.
+- O painel passou a consultar os totais por meio da função protegida `get_access_metrics`, disponível apenas para Administradores e Operadores.
+- A gravação pública continua exclusivamente na função `record_public_access`; visitantes não conseguem ler os contadores nem acessar dados individuais.
+
 ### 2026-08-31 — Estrutura visual do painel de acessos
 
 - Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.

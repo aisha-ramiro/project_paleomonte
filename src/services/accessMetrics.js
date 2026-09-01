@@ -49,32 +49,20 @@ export async function getAccessMetrics({ startDate, endDate, specimenId = null }
     return { periodTotal: 0, todayTotal: 0, series: buildDailyAccessSeries(startDate, endDate), error: 'not-configured' };
   }
 
-  const today = localDateInput();
-  const accessTable = specimenId ? 'specimen_access_daily' : 'site_access_daily';
-  const scopedToSpecimen = (query) => specimenId ? query.eq('specimen_id', specimenId) : query;
-  const [periodResponse, todayResponse] = await Promise.all([
-    scopedToSpecimen(supabase
-      .from(accessTable)
-      .select('access_date, access_count')
-      .gte('access_date', startDate)
-      .lte('access_date', endDate)
-      .order('access_date')),
-    scopedToSpecimen(supabase
-      .from(accessTable)
-      .select('access_count')
-      .eq('access_date', today)
-      .maybeSingle()),
-  ]);
+  const { data, error } = await supabase.rpc('get_access_metrics', {
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_specimen_id: specimenId || null,
+  });
 
-  const error = periodResponse.error ?? todayResponse.error;
   if (error) {
     return { periodTotal: 0, todayTotal: 0, series: buildDailyAccessSeries(startDate, endDate), error: error.message };
   }
 
-  const rows = periodResponse.data ?? [];
+  const rows = Array.isArray(data?.series) ? data.series : [];
   return {
     periodTotal: rows.reduce((total, row) => total + (Number(row.access_count) || 0), 0),
-    todayTotal: Number(todayResponse.data?.access_count) || 0,
+    todayTotal: Number(data?.today_total) || 0,
     series: buildDailyAccessSeries(startDate, endDate, rows),
     error: null,
   };
