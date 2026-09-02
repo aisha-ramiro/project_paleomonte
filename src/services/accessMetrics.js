@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { isSupabaseConfigured, recordPublicAccess, supabase } from '../lib/supabase';
 
 export function localDateInput(date = new Date()) {
   const values = new Intl.DateTimeFormat('en-US', {
@@ -39,8 +39,9 @@ export function usePublicAccessTracking(route) {
     const specimenSlug = path.match(/^\/fosseis\/([^/]+)$/)?.[1] ?? null;
 
     // A função no banco apenas incrementa contadores diários. Nenhuma
-    // informação individual de visitante é enviada ou registrada.
-    void supabase.rpc('record_public_access', { p_specimen_slug: specimenSlug });
+    // informação individual de visitante é enviada ou registrada. O envio
+    // usa keepalive para concluir mesmo quando a pessoa sai rapidamente.
+    void recordPublicAccess(specimenSlug);
   }, [route]);
 }
 

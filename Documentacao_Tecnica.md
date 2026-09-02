@@ -298,6 +298,11 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - O painel passou a consultar os totais por meio da função protegida `get_access_metrics`, disponível apenas para Administradores e Operadores.
 - A gravação pública continua exclusivamente na função `record_public_access`; visitantes não conseguem ler os contadores nem acessar dados individuais.
 
+### 2026-09-02 — Envio confiável de acessos públicos
+
+- Reforçado o envio da coleta com `fetch` e `keepalive`, garantindo que o navegador conclua o registro mesmo quando a pessoa troca de página ou fecha a aba logo após abrir o site.
+- O comportamento continua agregado por dia e não envia IP, dispositivo, identidade, sessão ou horário individual.
+
 ### 2026-08-31 — Estrutura visual do painel de acessos
 
 - Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.
