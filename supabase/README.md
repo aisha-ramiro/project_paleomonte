@@ -7,7 +7,7 @@ Esta pasta contém a infraestrutura de dados do PaleoMonte. A migration inicial 
 1. Crie um projeto em [Supabase](https://supabase.com/dashboard).
 2. No projeto, abra **SQL Editor**.
 3. Copie e execute o conteúdo de `migrations/202608300001_initial_schema.sql`.
-   Para projetos que já executaram essa primeira migration, execute também cada migration posterior pelo SQL Editor, em ordem numérica. A migration `202608310002_access_metrics.sql` ativa os contadores diários de acessos exibidos no painel; `202608310003_user_levels.sql` reduz os acessos a Administrador e Operador.
+   Para projetos que já executaram essa primeira migration, execute também cada migration posterior pelo SQL Editor, em ordem numérica. A migration `202608310002_access_metrics.sql` ativa os contadores diários de acessos exibidos no painel; `202608310003_user_levels.sql` reduz os acessos a Administrador e Operador; `202609110001_specimen_translations.sql` adiciona o espaço seguro para as traduções automáticas das fichas.
 4. No Supabase Auth, crie ou convide o primeiro usuário administrativo.
 5. Copie o UUID desse usuário e atribua o papel de administrador:
 
@@ -20,6 +20,17 @@ values ('UUID_DO_USUARIO', 'admin');
 7. Renomeie `.env.example` para `.env.local` e preencha as duas variáveis.
 
 Nunca use nem exponha chaves `sb_secret_...`, `service_role`, a senha do banco ou a string de conexão do PostgreSQL no front-end.
+
+## Tradução automática das fichas
+
+A tradução da ficha pública para inglês usa a API do DeepL por meio da Function `api/translate.js` da Vercel. O nome científico não é enviado ao tradutor e permanece idêntico nos dois idiomas.
+
+1. Crie uma chave de API no DeepL.
+2. Na Vercel, abra o projeto em **Settings → Environment Variables** e cadastre `DEEPL_API_KEY` para os ambientes **Production** e **Preview**.
+3. Não use o prefixo `VITE_` nessa variável e não a adicione ao arquivo `.env.local` usado pelo navegador: ela é uma credencial privada da função de servidor.
+4. Faça um novo deploy da Vercel depois de salvar a variável.
+
+Em cada salvamento de espécie, o painel tenta gerar a versão em inglês e a armazena na coluna `specimens.translations`. Para registros já existentes, a ação **Gerar inglês** na listagem de espécies cria ou atualiza essa versão manualmente. A equipe pode revisar e substituir essas traduções diretamente no banco quando necessário.
 
 ## Papéis de acesso
 

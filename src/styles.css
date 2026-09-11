@@ -25,3 +25,11 @@
 
 /* Leitura nativa da ficha do espécime: a voz só é iniciada pelo botão de play. */
 .audio button:disabled{cursor:not-allowed;background:#8b918d}.audio-line i{width:0;transition:width .35s ease}.audio-line i.playing{width:46%}.audio small{color:var(--muted);white-space:nowrap}
+
+/* Seleção de idioma do site público e da ficha acessada por QR Code. */
+.language-switcher{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--paper)}
+.language-switcher button{width:28px;height:26px;border:0;border-radius:50%;background:transparent;padding:0;font-size:15px;line-height:1;filter:grayscale(.65);opacity:.72}
+.language-switcher button:hover,.language-switcher button.active{background:#edf1ed;filter:none;opacity:1}
+.header-language{margin-left:4px;flex:none}
+.specimen-language{align-self:start;margin-top:2px}
+@media(max-width:760px){.header-language{margin-left:auto}.language-switcher button{width:27px;height:25px}.specimen-head{gap:12px}.specimen-language{margin-top:0}}

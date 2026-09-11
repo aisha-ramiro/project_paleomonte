@@ -1,6 +1,6 @@
 # Documentação Técnica — PaleoMonte
 
-> Última atualização: 31 de agosto de 2026
+> Última atualização: 11 de setembro de 2026
 >
 > Status atual: aplicação navegável com Supabase conectado. O painel administra o acervo e o catálogo público exibe espécies com status publicado, sujeitas à validação institucional.
 
@@ -30,7 +30,8 @@ A interface pública e o painel administrativo estão conectados ao Supabase. Os
 | Banco de dados e autenticação | PostgreSQL + Auth via Supabase | Dados do acervo, papéis de acesso, RLS e login administrativo. |
 | Armazenamento | Supabase Storage | Bucket privado para imagens, áudios e arquivos de QR Code. |
 | Métricas | PostgreSQL via Supabase | Contadores diários agregados de acessos do site e de espécies. |
-| Leitura em voz alta | Web Speech API (`SpeechSynthesis`) | Leitura nativa da ficha pública em `pt-BR`, sem serviço externo ou arquivo de áudio. |
+| Tradução automática | DeepL API + Vercel Function | Geração protegida das versões em inglês das fichas, sem expor a chave no navegador. |
+| Leitura em voz alta | Web Speech API (`SpeechSynthesis`) | Leitura nativa da ficha pública em português ou inglês, sem criar arquivo de áudio. |
 
 ### Bibliotecas instaladas
 
@@ -71,6 +72,9 @@ Exemplo de rota individual atualmente disponível:
 - Cards clicáveis que levam à página individual do espécime.
 - Galeria funcional de imagens, com seleção da foto exibida na página da espécie.
 - Leitura em voz alta nativa da ficha pública, acionada por play.
+- Interface pública completa em português e inglês, com seleção persistente de idioma na navegação.
+- Seletor independente de idioma nas fichas de espécie, pensado para acessos diretos por QR Code.
+- Tradução automática para inglês durante o salvamento de espécies; o nome científico é preservado sem alteração.
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
 - Dashboard administrativo com métricas do acervo e acompanhamento agregado de acessos por período.
@@ -88,7 +92,7 @@ Exemplo de rota individual atualmente disponível:
 
 Qualquer espécime, descrição, imagem, áudio ou métrica publicada deve ser interpretado como conteúdo em validação até a aprovação científica, museológica e institucional do museu.
 
-A imagem em `src/assets/museum-hero.png` é ilustrativa, gerada para apoiar a concepção visual. Antes de uma publicação institucional, ela deverá ser substituída por imagens autorizadas pelo museu e acompanhadas de textos alternativos adequados.
+A imagem atual de capa em `src/assets/museum-hero-anuratitan-warm.png` deriva de fotografia autorizada do acervo e recebeu somente tratamento leve de iluminação e enquadramento. Toda imagem institucional deve permanecer acompanhada de texto alternativo adequado.
 
 ## 6. Estrutura atual do projeto
 
@@ -103,16 +107,21 @@ PaleoMonte/
 │   │   └── supabase.js              # Cliente Supabase, ativado por variáveis de ambiente
 │   ├── services/
 │   │   ├── accessMetrics.js          # Coleta e consulta de contadores diários
-│   │   └── publicCatalog.js          # Consulta do catálogo público
+│   │   ├── publicCatalog.js          # Consulta do catálogo público
+│   │   └── translation.js            # Chamada autenticada para gerar traduções
+│   ├── i18n.js                       # Textos públicos PT/EN e localização das fichas
 │   ├── main.jsx                     # Páginas públicas, rotas e composição da aplicação
 │   └── styles.css                   # Estilos visuais e regras responsivas
+├── api/
+│   └── translate.js                  # Function Vercel que protege a chave do DeepL
 ├── supabase/
 │   ├── functions/
 │   │   └── admin-users/index.ts      # Edge Function para convites administrativos
 │   ├── migrations/
 │   │   ├── 202608300001_initial_schema.sql  # Banco, RLS, Storage e auditoria
 │   │   ├── 202608310001_storage_manager_read.sql
-│   │   └── 202608310002_access_metrics.sql  # Contadores diários de acessos
+│   │   ├── 202608310002_access_metrics.sql  # Contadores diários de acessos
+│   │   └── 202609110001_specimen_translations.sql # Traduções automáticas das fichas
 │   └── README.md                     # Instruções de implantação do Supabase
 ├── .env.example                      # Modelo seguro de variáveis de ambiente
 ├── index.html                       # Documento HTML de entrada
@@ -310,6 +319,18 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - A versão de capa recebe ainda um aquecimento sutil nos ossos, vitrines e piso, em harmonia com os tons dourados da identidade visual, sem perder o aspecto real do ambiente.
 - Os arquivos anteriores foram preservados; a capa atual está em `src/assets/museum-hero-anuratitan-warm.png`.
 - O enquadramento usa `object-fit: cover`, sem distorcer a foto, e reposiciona a área visível para preservar o esqueleto em destaque nas telas largas.
+
+### 2026-09-11 — Site bilíngue e tradução automática das espécies
+
+- Adicionados seletores de idioma com as bandeiras do Brasil e dos Estados Unidos na navegação pública. O idioma padrão é português; a escolha geral é mantida neste navegador.
+- Traduzidos os textos da página inicial, catálogo, sobre o museu, acessibilidade, rodapé e controles públicos para inglês americano. O painel administrativo permanece em português.
+- A página de espécie recebeu seu próprio seletor, independente da seleção geral, para que visitantes que chegam diretamente pelo QR Code possam traduzir somente a ficha.
+- A ficha preserva o nome científico sem qualquer alteração. Os campos editoriais, categoria, período, local, descrição e atributos são exibidos em inglês quando houver tradução disponível.
+- A leitura nativa acompanha o idioma selecionado: prioriza `pt-BR` em português e `en-US` em inglês.
+- Criada a migration `supabase/migrations/202609110001_specimen_translations.sql`, que adiciona a coluna JSON `translations` aos espécimes.
+- Criada a Function `api/translate.js` na Vercel, protegida por sessão e papel editorial, que envia apenas os campos traduzíveis à API do DeepL. A chave `DEEPL_API_KEY` permanece exclusivamente nas variáveis privadas da Vercel.
+- Ao criar ou editar uma espécie, o painel tenta gerar a versão em inglês. A listagem também disponibiliza **Gerar inglês** para traduzir registros cadastrados anteriormente ou refazer uma tradução.
+- A tradução automática é material de apoio editorial e pode ser revisada pela equipe antes da publicação institucional.
 
 ### 2026-08-31 — Estrutura visual do painel de acessos
 

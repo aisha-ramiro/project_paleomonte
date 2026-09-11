@@ -6,13 +6,7 @@ import { AdminPanel } from "./components/AdminPanel";
 import { usePublicAccessTracking } from "./services/accessMetrics";
 import { usePublicCatalog } from "./services/publicCatalog";
 import { FaFacebookF, FaInstagram } from "react-icons/fa";
-
-const navItems = [
-  ["Início", "#/"],
-  ["Catálogo", "#/catalogo"],
-  ["Sobre o museu", "#/sobre"],
-  ["Acessibilidade", "#/acessibilidade"],
-];
+import { copy, languages, localizeSpecimen } from "./i18n";
 
 function Icon({ children }) {
   return (
@@ -55,8 +49,15 @@ function Brand({ inverse = false }) {
   );
 }
 
-function Header() {
+function LanguageSwitcher({ language, onChange, className = "" }) {
+  return <div className={`language-switcher ${className}`} aria-label="Language selector">
+    {Object.entries(languages).map(([code, item]) => <button type="button" className={language === code ? "active" : ""} onClick={() => onChange(code)} aria-label={item.label} aria-pressed={language === code} key={code}>{item.flag}</button>)}
+  </div>;
+}
+
+function Header({ language, onLanguageChange }) {
   const [open, setOpen] = useState(false);
+  const navItems = [[copy[language].nav.home, "#/"], [copy[language].nav.catalog, "#/catalogo"], [copy[language].nav.about, "#/sobre"], [copy[language].nav.accessibility, "#/acessibilidade"]];
   return (
     <header className="site-header">
       <div className="shell header-inner">
@@ -75,37 +76,40 @@ function Header() {
             </a>
           ))}
         </nav>
+        <LanguageSwitcher language={language} onChange={onLanguageChange} className="header-language" />
       </div>
     </header>
   );
 }
 
-function Footer() {
+function Footer({ language }) {
+  const text = copy[language].footer;
+  const nav = copy[language].nav;
   return (
     <footer className="footer">
       <div className="shell footer-grid">
         <Brand inverse />
 
         <section>
-          <h4>Links úteis</h4>
-          <a href="#/catalogo">Catálogo</a>
-          <a href="#/sobre">Sobre o Museu</a>
-          <a href="#/acessibilidade">Acessibilidade</a>
+          <h4>{text.links}</h4>
+          <a href="#/catalogo">{nav.catalog}</a>
+          <a href="#/sobre">{nav.about}</a>
+          <a href="#/acessibilidade">{nav.accessibility}</a>
         </section>
 
         <section>
-          <h4>Acessibilidade</h4>
+          <h4>{text.accessibility}</h4>
           <a href="#/acessibilidade">
-            Aumentar fonte <b>A+</b>
+            {text.increase} <b>A+</b>
           </a>
           <a href="#/acessibilidade">
-            Diminuir fonte <b>A−</b>
+            {text.decrease} <b>A−</b>
           </a>
-          <a href="#/acessibilidade">Alto contraste</a>
+          <a href="#/acessibilidade">{text.contrast}</a>
         </section>
 
         <section>
-          <h4>Siga-nos</h4>
+          <h4>{text.follow}</h4>
           <div className="socials">
             <a
               href="https://www.facebook.com/museumpma/?locale=pt_BR"
@@ -148,23 +152,23 @@ function Footer() {
   );
 }
 
-function SearchBox({ value, onChange, compact = false }) {
+function SearchBox({ value, onChange, placeholder, compact = false }) {
   return (
     <label className={`search-box ${compact ? "compact" : ""}`}>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Buscar fósseis, espécies, períodos..."
-        aria-label="Buscar no catálogo"
+        placeholder={placeholder}
+        aria-label={placeholder}
       />
       <Icon>⌕</Icon>
     </label>
   );
 }
 
-function FossilCard({ item, small = false }) {
+function FossilCard({ item, small = false, language = 'pt' }) {
   const image = item.image || heroImage;
-  const category = item.category || "Acervo";
+  const category = item.category || copy[language].specimen.categoryFallback;
   return (
     <a
       className={`fossil-card ${small ? "small" : ""}`}
@@ -173,7 +177,7 @@ function FossilCard({ item, small = false }) {
       <div className="fossil-photo">
         <img
           src={image}
-          alt={item.imageAlt || `Imagem temporária de ${item.name}`}
+          alt={item.imageAlt || `${copy[language].specimen.imageAlt} ${item.name}`}
         />
       </div>
       <div className="card-copy">
@@ -181,7 +185,7 @@ function FossilCard({ item, small = false }) {
           {category}
         </span>
         <h3>{item.name}</h3>
-        <p>{item.period}</p>
+        <p>{item.period || "—"}</p>
         <span className="card-arrow">→</span>
       </div>
     </a>
@@ -198,8 +202,11 @@ function Feature({ symbol, title, children }) {
   );
 }
 
-function Home({ specimens, loading }) {
+function Home({ specimens, loading, language }) {
   const [query, setQuery] = useState("");
+  const text = copy[language].home;
+  const catalogText = copy[language].catalog;
+  const localizedSpecimens = specimens.map((item) => localizeSpecimen(item, language));
   const goSearch = (e) => {
     e.preventDefault();
     navigate(`/catalogo?q=${encodeURIComponent(query)}`);
@@ -209,73 +216,54 @@ function Home({ specimens, loading }) {
       <section className="hero">
         <img
           src={heroImage}
-          alt="Imagem ilustrativa temporária de um esqueleto de dinossauro em exposição no museu"
+          alt={language === 'en' ? 'Museum fossil skeleton on display' : 'Esqueleto fóssil em exposição no museu'}
         />
         <div className="hero-shade" />
         <div className="shell hero-content">
-          <p className="eyebrow">Museu de Paleontologia</p>
-          <h1>
-            Descubra a<br />
-            história da vida
-            <br />
-            que já existiu
-          </h1>
-          <p>
-            Explore o acervo paleontológico de Monte Alto através de
-            informações, imagens e recursos de acessibilidade.
-          </p>
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.title.map((line, index) => <span key={line}>{line}{index < text.title.length - 1 && <br/>}</span>)}</h1>
+          <p>{text.text}</p>
           <form onSubmit={goSearch}>
-            <SearchBox value={query} onChange={setQuery} />
+            <SearchBox value={query} onChange={setQuery} placeholder={catalogText.search} />
           </form>
           <a className="button gold" href="#/catalogo">
-            Explorar catálogo
+            {text.explore}
           </a>
         </div>
       </section>
       <section className="features shell">
-        <Feature symbol="⌘" title="Escaneie o QR Code">
-          Encontre o código ao lado do fóssil na exposição.
-        </Feature>
-        <Feature symbol="▤" title="Acesse as informações">
-          Leia sobre a espécie, descubra curiosidades.
-        </Feature>
-        <Feature symbol="◖))" title="Ouça a descrição">
-          Recurso de áudio para tornar o conteúdo acessível.
-        </Feature>
-        <Feature symbol="♣" title="Conheça nosso acervo">
-          Navegue pelo catálogo completo do museu.
-        </Feature>
+        {[["⌘", ...text.features[0]], ["▤", ...text.features[1]], ["◖))", ...text.features[2]], ["♣", ...text.features[3]]].map(([symbol, title, description]) => <Feature symbol={symbol} title={title} key={symbol}>{description}</Feature>)}
       </section>
       <section className="shell highlights">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Acervo em destaque</p>
-            <h2>Histórias preservadas no tempo</h2>
+            <p className="eyebrow">{text.featuredEyebrow}</p>
+            <h2>{text.featuredTitle}</h2>
           </div>
-          <a href="#/catalogo">Ver catálogo completo →</a>
+          <a href="#/catalogo">{text.allCatalog}</a>
         </div>
         {loading ? (
-          <div className="empty">Carregando espécies publicadas...</div>
-        ) : specimens.length ? (
+          <div className="empty">{catalogText.loading}</div>
+        ) : localizedSpecimens.length ? (
           <div className="cards-grid featured">
-            {specimens.slice(0, 4).map((item) => (
-              <FossilCard key={item.id} item={item} />
+            {localizedSpecimens.slice(0, 4).map((item) => (
+              <FossilCard key={item.id} item={item} language={language} />
             ))}
           </div>
         ) : (
           <div className="empty">
-            O acervo está sendo preparado para publicação.
+            {catalogText.preparing}
           </div>
         )}
       </section>
       <section className="visit-cta">
         <div className="shell">
           <div>
-            <p className="eyebrow">Uma experiência para todos</p>
-            <h2>O passado ganha novas formas de ser descoberto.</h2>
+            <p className="eyebrow">{text.experienceEyebrow}</p>
+            <h2>{text.experienceTitle}</h2>
           </div>
           <a className="button light" href="#/sobre">
-            Conheça o museu
+            {text.visit}
           </a>
         </div>
       </section>
@@ -283,76 +271,78 @@ function Home({ specimens, loading }) {
   );
 }
 
-function Catalog({ specimens, loading, error }) {
+function Catalog({ specimens, loading, error, language }) {
   const route = useRoute();
+  const text = copy[language].catalog;
+  const localizedSpecimens = specimens.map((item) => localizeSpecimen(item, language));
   const fromUrl = new URLSearchParams(route.split("?")[1] || "").get("q") || "";
   const [query, setQuery] = useState(fromUrl);
-  const [category, setCategory] = useState("Todos");
-  const [period, setPeriod] = useState("Todos");
+  const [category, setCategory] = useState("");
+  const [period, setPeriod] = useState("");
   const items = useMemo(
     () =>
-      specimens.filter(
+      localizedSpecimens.filter(
         (s) =>
           `${s.name} ${s.category} ${s.period}`
             .toLowerCase()
             .includes(query.toLowerCase()) &&
-          (category === "Todos" || s.category === category) &&
-          (period === "Todos" || s.period === period),
+          (!category || s.category === category) &&
+          (!period || s.period === period),
       ),
-    [specimens, query, category, period],
+    [localizedSpecimens, query, category, period],
   );
   return (
     <main className="shell page">
       <div className="crumb">
-        Início <b>›</b> Catálogo
+        {text.crumb} <b>›</b> {text.title}
       </div>
       <div className="catalog-heading">
         <div>
-          <p className="eyebrow">Explore o acervo</p>
-          <h1>Catálogo</h1>
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.title}</h1>
         </div>
         <span>
-          {loading ? "Carregando..." : `${items.length} itens encontrados`}
+          {loading ? text.loading : `${items.length} ${text.found}`}
         </span>
       </div>
       <div className="catalog-controls">
-        <SearchBox value={query} onChange={setQuery} />
+        <SearchBox value={query} onChange={setQuery} placeholder={text.search} />
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          aria-label="Filtrar por categoria"
+          aria-label={text.category}
         >
-          <option>Todos</option>
-          {[...new Set(specimens.map((s) => s.category))].map((x) => (
+          <option value="">{text.all}</option>
+          {[...new Set(localizedSpecimens.map((s) => s.category))].map((x) => (
             <option key={x}>{x}</option>
           ))}
         </select>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          aria-label="Filtrar por período"
+          aria-label={text.period}
         >
-          <option>Todos</option>
-          {[...new Set(specimens.map((s) => s.period))].map((x) => (
+          <option value="">{text.all}</option>
+          {[...new Set(localizedSpecimens.map((s) => s.period))].map((x) => (
             <option key={x}>{x}</option>
           ))}
         </select>
       </div>
       <div className="filter-note">
-        <Icon>☷</Icon> Filtros aplicados automaticamente ao catálogo
+        <Icon>☷</Icon> {text.filterNote}
       </div>
       {loading ? (
-        <div className="empty">Carregando espécies publicadas...</div>
+        <div className="empty">{text.loading}</div>
       ) : (
         <>
           <div className="cards-grid catalog-grid">
             {items.map((item) => (
-              <FossilCard key={item.id} item={item} />
+              <FossilCard key={item.id} item={item} language={language} />
             ))}
           </div>
           {items.length === 0 && (
             <div className="empty">
-              {error || "Nenhum fóssil publicado foi encontrado."}
+              {error || text.empty}
             </div>
           )}
         </>
@@ -361,27 +351,29 @@ function Catalog({ specimens, loading, error }) {
   );
 }
 
-function narrationValue(value) {
+function narrationValue(value, language) {
   return value === null || value === undefined || String(value).trim() === ""
-    ? "Não informado"
+    ? copy[language].specimen.noInfo
     : String(value).trim();
 }
 
-function specimenNarration(specimen) {
+function specimenNarration(specimen, language) {
+  const text = copy[language].specimen;
   return [
-    `Nome científico. ${narrationValue(specimen.name)}.`,
-    `Nome popular. ${narrationValue(specimen.commonName)}.`,
-    `Período geológico. ${narrationValue(specimen.period)}.`,
-    `Local da descoberta. ${narrationValue(specimen.location)}.`,
-    `Descrição. ${narrationValue(specimen.description)}`,
-    `Tipo. ${narrationValue(specimen.type)}.`,
-    `Comprimento. ${narrationValue(specimen.length)}.`,
-    `Dieta. ${narrationValue(specimen.diet)}.`,
-    `Era geológica. ${narrationValue(specimen.era)}.`,
+    `${language === 'en' ? 'Scientific name' : 'Nome científico'}. ${narrationValue(specimen.name, language)}.`,
+    `${language === 'en' ? 'Common name' : 'Nome popular'}. ${narrationValue(specimen.commonName, language)}.`,
+    `${text.period} ${narrationValue(specimen.period, language)}.`,
+    `${text.location} ${narrationValue(specimen.location, language)}.`,
+    `${text.about}. ${narrationValue(specimen.description, language)}`,
+    `${text.type}. ${narrationValue(specimen.type, language)}.`,
+    `${text.length}. ${narrationValue(specimen.length, language)}.`,
+    `${text.diet}. ${narrationValue(specimen.diet, language)}.`,
+    `${text.era}. ${narrationValue(specimen.era, language)}.`,
   ].join(" ");
 }
 
-function AudioPlayer({ text }) {
+function AudioPlayer({ text, language }) {
+  const labels = copy[language].specimen;
   const [status, setStatus] = useState("idle");
   const utteranceRef = useRef(null);
   const supported =
@@ -416,13 +408,11 @@ function AudioPlayer({ text }) {
     utteranceRef.current = null;
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "pt-BR";
+    utterance.lang = languages[language].locale;
     utterance.rate = 0.95;
     const voices = synth.getVoices();
-    const portugueseVoice =
-      voices.find((voice) => voice.lang.toLowerCase() === "pt-br") ??
-      voices.find((voice) => voice.lang.toLowerCase().startsWith("pt"));
-    if (portugueseVoice) utterance.voice = portugueseVoice;
+    const voice = voices.find((item) => item.lang.toLowerCase() === utterance.lang.toLowerCase()) ?? voices.find((item) => item.lang.toLowerCase().startsWith(language));
+    if (voice) utterance.voice = voice;
     utteranceRef.current = utterance;
     utterance.onstart = () => {
       if (utteranceRef.current === utterance) setStatus("speaking");
@@ -444,21 +434,21 @@ function AudioPlayer({ text }) {
   };
 
   const label = !supported
-    ? "Leitura em voz alta não disponível neste navegador"
+    ? labels.listenUnavailable
     : status === "speaking"
-      ? "Pausar leitura"
+      ? labels.pause
       : status === "paused"
-        ? "Continuar leitura"
-        : "Ouvir descrição";
+        ? labels.continue
+        : labels.play;
   const textLabel = !supported
-    ? "Leitura não disponível neste navegador"
+    ? labels.listenUnavailable
     : status === "speaking"
-      ? "Lendo informações da espécie"
-      : status === "paused"
-        ? "Leitura pausada"
+      ? labels.listenSpeaking
+    : status === "paused"
+        ? labels.listenPaused
         : status === "error"
-          ? "Não foi possível iniciar a leitura"
-          : "Ouvir descrição";
+          ? labels.listenError
+          : labels.listenIdle;
 
   return (
     <div className="audio">
@@ -470,31 +460,35 @@ function AudioPlayer({ text }) {
         <i className={status === "speaking" ? "playing" : ""} />
       </div>
       <small>
-        {supported ? "Leitura nativa em português" : "Sem suporte de voz"}
+        {supported ? labels.nativeVoice : labels.listenUnavailable}
       </small>
     </div>
   );
 }
 
-function SpecimenPage({ specimen, loading }) {
+function SpecimenPage({ specimen, loading, siteLanguage }) {
   const [selectedImageId, setSelectedImageId] = useState(null);
+  const [language, setLanguage] = useState('pt');
   useEffect(() => setSelectedImageId(null), [specimen?.id]);
   if (loading)
     return (
       <main className="shell page">
-        <div className="empty">Carregando espécie...</div>
+        <div className="empty">{copy[siteLanguage].specimen.loading}</div>
       </main>
     );
   if (!specimen)
     return (
       <main className="shell page">
-        <h1>Espécime não encontrado</h1>
+        <h1>{copy[siteLanguage].specimen.notFound}</h1>
         <a className="button green" href="#/catalogo">
-          Voltar ao catálogo
+          {copy[siteLanguage].specimen.back}
         </a>
       </main>
     );
 
+  const text = copy[language].specimen;
+  const globalText = copy[siteLanguage].specimen;
+  const localizedSpecimen = localizeSpecimen(specimen, language);
   const imageMedia = specimen.media.filter(
     (item) => item.type === "image" && item.url,
   );
@@ -503,44 +497,42 @@ function SpecimenPage({ specimen, loading }) {
     imageMedia.find((media) => media.purpose === "cover") ??
     imageMedia[0] ??
     null;
-  const image = selectedImage?.url || specimen.image || heroImage;
-  const narration = specimenNarration(specimen);
+  const image = selectedImage?.url || localizedSpecimen.image || heroImage;
+  const narration = specimenNarration(localizedSpecimen, language);
 
   return (
     <main className="shell page specimen">
       <div className="crumb">
-        Início <b>›</b> Catálogo <b>›</b> {specimen.name}
+        {globalText.crumb} <b>›</b> {globalText.catalog} <b>›</b> {specimen.name}
       </div>
       <a className="back-link" href="#/catalogo">
-        ← Voltar ao catálogo
+        {globalText.back}
       </a>
       <div className="specimen-head">
         <div>
           <p
-            className={`pill ${specimen.category.toLowerCase().replaceAll(" ", "-")}`}
+            className={`pill ${localizedSpecimen.category.toLowerCase().replaceAll(" ", "-")}`}
           >
-            {specimen.category}
+            {localizedSpecimen.category}
           </p>
           <h1>{specimen.name}</h1>
-          {specimen.commonName && (
-            <p className="latin">{specimen.commonName}</p>
+          {localizedSpecimen.commonName && (
+            <p className="latin">{localizedSpecimen.commonName}</p>
           )}
           <p>
-            <b>Período:</b> {specimen.period} <span className="dot">•</span>{" "}
-            <b>Local de descoberta:</b> {specimen.location}
+            <b>{text.period}</b> {localizedSpecimen.period || text.noInfo} <span className="dot">•</span>{" "}
+            <b>{text.location}</b> {localizedSpecimen.location || text.noInfo}
           </p>
         </div>
-        <button className="save-button" aria-label="Salvar espécie">
-          ♡
-        </button>
+        <LanguageSwitcher language={language} onChange={setLanguage} className="specimen-language" />
       </div>
       <div className="detail-photo">
         <img
           src={image}
           alt={
             selectedImage?.alt_text ||
-            specimen.imageAlt ||
-            `Imagem temporária de ${specimen.name}`
+            localizedSpecimen.imageAlt ||
+            `${text.imageAlt} ${specimen.name}`
           }
         />
       </div>
@@ -551,7 +543,7 @@ function SpecimenPage({ specimen, loading }) {
               className={media.id === selectedImage?.id ? "selected" : ""}
               key={media.id}
               onClick={() => setSelectedImageId(media.id)}
-              aria-label={`Ver ${media.alt_text || "foto da espécie"}`}
+              aria-label={`${text.viewImage}: ${media.alt_text || text.imageAlt}`}
             >
               <img src={media.url} alt="" />
             </button>
@@ -559,74 +551,64 @@ function SpecimenPage({ specimen, loading }) {
         </div>
       )}
       <section className="about-specimen">
-        <h2>Sobre a espécie</h2>
-        <p>{specimen.description}</p>
+        <h2>{text.about}</h2>
+        <p>{localizedSpecimen.description}</p>
       </section>
       <div className="fact-grid">
         <div>
           <Icon>♧</Icon>
-          <b>Tipo</b>
-          <span>{specimen.type}</span>
+          <b>{text.type}</b>
+          <span>{localizedSpecimen.type || text.noInfo}</span>
         </div>
         <div>
           <Icon>⌁</Icon>
-          <b>Comprimento</b>
-          <span>{specimen.length}</span>
+          <b>{text.length}</b>
+          <span>{localizedSpecimen.length || text.noInfo}</span>
         </div>
         <div>
           <Icon>◉</Icon>
-          <b>Dieta</b>
-          <span>{specimen.diet}</span>
+          <b>{text.diet}</b>
+          <span>{localizedSpecimen.diet || text.noInfo}</span>
         </div>
         <div>
           <Icon>✥</Icon>
-          <b>Era geológica</b>
-          <span>{specimen.era || "Não informado"}</span>
+          <b>{text.era}</b>
+          <span>{localizedSpecimen.era || text.noInfo}</span>
         </div>
       </div>
       <section className="listen">
-        <h2>Ouça a descrição</h2>
-        <p>Aperte play para ouvir as informações desta espécie em português.</p>
-        <AudioPlayer text={narration} />
+        <h2>{text.listen}</h2>
+        <p>{text.listenHint}</p>
+        <AudioPlayer text={narration} language={language} />
       </section>
     </main>
   );
 }
 
-function About() {
+function About({ language }) {
+  const text = copy[language].about;
   return (
     <main className="page">
       <section className="about-hero">
         <div className="shell">
-          <p className="eyebrow">Monte Alto, São Paulo</p>
-          <h1>Um museu que preserva histórias da vida.</h1>
-          <p>
-            O Museu de Paleontologia Prof. Antonio Celso de Arruda Campos guarda
-            e compartilha um patrimônio que aproxima ciência, memória e
-            comunidade.
-          </p>
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.title}</h1>
+          <p>{text.text}</p>
         </div>
       </section>
       <section className="shell about-content">
         <div>
-          <p className="eyebrow">Sobre o projeto</p>
-          <h2>PaleoMonte</h2>
-          <p>
-            Este protótipo apresenta uma proposta de catálogo digital acessível,
-            pensado para acompanhar a visita ao museu e conectar cada fóssil a
-            conteúdos compreensíveis.
-          </p>
-          <p>
-            A etapa atual usa textos e imagens ilustrativos. Todo o conteúdo
-            científico publicado será validado institucionalmente.
-          </p>
+          <p className="eyebrow">{text.projectEyebrow}</p>
+          <h2>{text.projectTitle}</h2>
+          <p>{text.projectText}</p>
+          <p>{text.projectText2}</p>
         </div>
         <aside>
           <span>⌘</span>
-          <h3>Visite o museu</h3>
-          <p>Monte Alto — SP</p>
+          <h3>{text.visitTitle}</h3>
+          <p>{text.visitPlace}</p>
           <a className="button green" href="#/catalogo">
-            Conheça o acervo
+            {text.visit}
           </a>
         </aside>
       </section>
@@ -634,42 +616,38 @@ function About() {
   );
 }
 
-function Accessibility() {
+function Accessibility({ language }) {
   const [big, setBig] = useState(false);
+  const text = copy[language].accessibility;
   return (
     <main className={`shell page accessibility ${big ? "big-text" : ""}`}>
-      <p className="eyebrow">Para todas as pessoas</p>
-      <h1>Acessibilidade</h1>
-      <p className="intro">
-        O PaleoMonte foi projetado para oferecer uma navegação simples, legível
-        e acolhedora durante a visita ao museu.
-      </p>
+      <p className="eyebrow">{text.eyebrow}</p>
+      <h1>{text.title}</h1>
+      <p className="intro">{text.intro}</p>
       <div className="access-controls">
         <button onClick={() => setBig(!big)}>
           <Icon>A±</Icon>
-          {big ? "Tamanho padrão" : "Aumentar texto"}
+          {big ? text.normal : text.increase}
         </button>
         <button onClick={() => document.body.classList.toggle("contrast")}>
-          <Icon>◐</Icon>Alto contraste
+          <Icon>◐</Icon>{text.contrast}
         </button>
       </div>
       <div className="access-grid">
         <article>
           <Icon>⌨</Icon>
-          <h2>Navegação por teclado</h2>
-          <p>
-            Todos os elementos interativos podem ser acessados pelo teclado.
-          </p>
+          <h2>{text.cards[0][0]}</h2>
+          <p>{text.cards[0][1]}</p>
         </article>
         <article>
           <Icon>◖))</Icon>
-          <h2>Conteúdo em áudio</h2>
-          <p>As espécies contam com controles para ouvir suas descrições.</p>
+          <h2>{text.cards[1][0]}</h2>
+          <p>{text.cards[1][1]}</p>
         </article>
         <article>
           <Icon>◉</Icon>
-          <h2>Leitura clara</h2>
-          <p>Tipografia legível, contraste adequado e estrutura semântica.</p>
+          <h2>{text.cards[2][0]}</h2>
+          <p>{text.cards[2][1]}</p>
         </article>
       </div>
     </main>
@@ -678,6 +656,8 @@ function Accessibility() {
 
 function App() {
   const route = useRoute();
+  const [language, setLanguage] = useState(() => window.localStorage.getItem('paleomonte-language') || 'pt');
+  useEffect(() => window.localStorage.setItem('paleomonte-language', language), [language]);
   const passwordSetup =
     window.location.pathname.replace(/\/+$/, "") === "/definir-senha";
   usePublicAccessTracking(passwordSetup ? "/admin" : route);
@@ -686,25 +666,26 @@ function App() {
   if (passwordSetup)
     content = <AdminPanel onCatalogChanged={reload} passwordSetup />;
   else if (route.startsWith("/catalogo"))
-    content = <Catalog specimens={specimens} loading={loading} error={error} />;
+    content = <Catalog specimens={specimens} loading={loading} error={error} language={language} />;
   else if (route.startsWith("/fosseis/"))
     content = (
       <SpecimenPage
         specimen={specimens.find((s) => route.includes(s.slug))}
         loading={loading}
+        siteLanguage={language}
       />
     );
-  else if (route === "/sobre") content = <About />;
-  else if (route === "/acessibilidade") content = <Accessibility />;
+  else if (route === "/sobre") content = <About language={language} />;
+  else if (route === "/acessibilidade") content = <Accessibility language={language} />;
   else if (route === "/admin")
     content = <AdminPanel onCatalogChanged={reload} />;
-  else content = <Home specimens={specimens} loading={loading} />;
+  else content = <Home specimens={specimens} loading={loading} language={language} />;
   const isAdmin = route === "/admin" || passwordSetup;
   return (
     <>
-      {!isAdmin && <Header />}
+      {!isAdmin && <Header language={language} onLanguageChange={setLanguage} />}
       {content}
-      {!isAdmin && <Footer />}
+      {!isAdmin && <Footer language={language} />}
     </>
   );
 }

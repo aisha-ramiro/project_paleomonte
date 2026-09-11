@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import Cropper from 'react-easy-crop';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { getAccessMetrics, localDateInput } from '../services/accessMetrics';
+import { translateSpecimen } from '../services/translation';
 
 const rolesThatCanAccessAdmin = ['admin', 'operator'];
 const rolesThatCanManageContent = ['admin', 'operator'];
@@ -369,6 +370,22 @@ function getQrCode(specimen) {
   return specimen?.qr_codes ?? null;
 }
 
+function translationRecord(specimen, categoryName = '') {
+  return {
+    commonName: specimen.common_name ?? '',
+    category: categoryName,
+    summary: specimen.summary ?? '',
+    description: specimen.description ?? '',
+    period: specimen.geological_period ?? '',
+    era: specimen.geological_era ?? '',
+    location: specimen.discovery_location ?? '',
+    discoveredBy: specimen.discovered_by ?? '',
+    type: specimen.specimen_type ?? '',
+    diet: specimen.diet ?? '',
+    additionalInfo: specimen.additional_info ?? '',
+  };
+}
+
 function escapePrintHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
 }
@@ -501,6 +518,14 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
     const { data, error: saveError } = await query;
     if (saveError) { setSaving(false); setError(saveError.message); return; }
     const warnings = [];
+    try {
+      const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
+      const english = await translateSpecimen(translationRecord(data, categoryName));
+      const translations = { ...(data.translations ?? {}), en: english };
+      const { error: translationSaveError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
+      if (translationSaveError) throw translationSaveError;
+      data.translations = translations;
+    } catch (translationError) { warnings.push(`tradução em inglês: ${translationError.message}`); }
     if (canManage) {
       const { error: clearCategoryError } = await supabase.from('specimen_categories').delete().eq('specimen_id', data.id);
       if (clearCategoryError) warnings.push(`categoria: ${clearCategoryError.message}`);
@@ -557,7 +582,7 @@ function SpeciesManager({ roles, onCatalogChanged }) {
 
   const load = async () => {
     setLoading(true);
-    const { data, error: loadError } = await supabase.from('specimens').select('*, specimen_categories(category_id, is_primary), specimen_media(purpose, display_order, media(id, storage_bucket, storage_path, type, alt_text, status)), qr_codes(id, image_path, public_path, status, version)').order('updated_at', { ascending: false });
+    const { data, error: loadError } = await supabase.from('specimens').select('*, specimen_categories(category_id, is_primary, categories(name)), specimen_media(purpose, display_order, media(id, storage_bucket, storage_path, type, alt_text, status)), qr_codes(id, image_path, public_path, status, version)').order('updated_at', { ascending: false });
     setLoading(false);
     if (loadError) { setError(loadError.message); return; }
     setSpecimens(data ?? []);
@@ -572,8 +597,22 @@ function SpeciesManager({ roles, onCatalogChanged }) {
     load();
   };
 
+  const translate = async (specimen) => {
+    setError(''); setNotice('');
+    try {
+      const categoryName = specimen.specimen_categories?.find((item) => item.is_primary)?.categories?.name ?? specimen.specimen_categories?.[0]?.categories?.name ?? '';
+      const english = await translateSpecimen(translationRecord(specimen, categoryName));
+      const translations = { ...(specimen.translations ?? {}), en: english };
+      const { error: translationError } = await supabase.from('specimens').update({ translations }).eq('id', specimen.id);
+      if (translationError) throw translationError;
+      setNotice(`Tradução em inglês gerada para “${specimen.scientific_name}”.`);
+      onCatalogChanged?.();
+      load();
+    } catch (translationError) { setError(translationError.message); }
+  };
+
   if (editing) return <SpecimenForm specimen={editing === 'new' ? null : editing} roles={roles} onCancel={() => setEditing(null)} onSaved={(_data, warnings) => { setEditing(null); setNotice(warnings.length ? `Espécie salva, mas houve pendência em: ${warnings.join(' | ')}` : 'Espécie, categoria, mídias e QR Code salvos.'); onCatalogChanged?.(); load(); }}/>;
-  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>{notice && <p className="form-success">{notice}</p>}{error && <p className="form-error" role="alert">{error}</p>}{loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button><PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>)}</tbody></table></div>}</section>;
+  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>{notice && <p className="form-success">{notice}</p>}{error && <p className="form-error" role="alert">{error}</p>}{loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button><button className="text-button" onClick={() => translate(specimen)}>Gerar inglês</button><PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>)}</tbody></table></div>}</section>;
 }
 
 function CategoriesManager() {
