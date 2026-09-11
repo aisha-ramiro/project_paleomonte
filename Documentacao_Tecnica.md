@@ -303,6 +303,14 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Reforçado o envio da coleta com `fetch` e `keepalive`, garantindo que o navegador conclua o registro mesmo quando a pessoa troca de página ou fecha a aba logo após abrir o site.
 - O comportamento continua agregado por dia e não envia IP, dispositivo, identidade, sessão ou horário individual.
 
+### 2026-09-11 — Nova imagem da página inicial
+
+- Adicionada uma versão tratada, de aparência natural, da fotografia real do acervo, com o esqueleto como destaque da capa.
+- A edição preserva o enquadramento e a iluminação documental da foto, suaviza reflexos e melhora levemente a nitidez; a placa de identificação ao fundo foi removida para evitar informação incorreta.
+- A versão de capa recebe ainda um aquecimento sutil nos ossos, vitrines e piso, em harmonia com os tons dourados da identidade visual, sem perder o aspecto real do ambiente.
+- Os arquivos anteriores foram preservados; a capa atual está em `src/assets/museum-hero-anuratitan-warm.png`.
+- O enquadramento usa `object-fit: cover`, sem distorcer a foto, e reposiciona a área visível para preservar o esqueleto em destaque nas telas largas.
+
 ### 2026-08-31 — Estrutura visual do painel de acessos
 
 - Substituído o bloco informativo “Banco preparado” pelo painel de acessos no dashboard administrativo.

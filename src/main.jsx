@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import heroImage from "./assets/museum-hero.png";
+import heroImage from "./assets/museum-hero-anuratitan-warm.png";
 import { AdminPanel } from "./components/AdminPanel";
 import { usePublicAccessTracking } from "./services/accessMetrics";
 import { usePublicCatalog } from "./services/publicCatalog";
