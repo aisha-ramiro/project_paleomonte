@@ -75,6 +75,8 @@ Exemplo de rota individual atualmente disponível:
 - Interface pública completa em português e inglês, com seleção persistente de idioma na navegação.
 - Seletor independente de idioma nas fichas de espécie, pensado para acessos diretos por QR Code.
 - Tradução automática para inglês durante o salvamento de espécies; o nome científico é preservado sem alteração.
+- Indicador **Inglês: Sim/Não** na listagem administrativa de espécies.
+- Edição manual dos campos traduzíveis em inglês ao lado da versão em português; dados científicos, identificadores, anos e valores numéricos permanecem bloqueados na coluna em inglês.
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
 - Dashboard administrativo com métricas do acervo e acompanhamento agregado de acessos por período.
@@ -331,6 +333,21 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Criada a Function `api/translate.js` na Vercel, protegida por sessão e papel editorial, que envia apenas os campos traduzíveis à API do DeepL. A chave `DEEPL_API_KEY` permanece exclusivamente nas variáveis privadas da Vercel.
 - Ao criar ou editar uma espécie, o painel tenta gerar a versão em inglês. A listagem também disponibiliza **Gerar inglês** para traduzir registros cadastrados anteriormente ou refazer uma tradução.
 - A tradução automática é material de apoio editorial e pode ser revisada pela equipe antes da publicação institucional.
+
+### 2026-09-11 — Controle e revisão da versão em inglês
+
+- Adicionada a coluna **Inglês** na listagem de espécies do painel. Ela informa **Sim** quando a ficha possui conteúdo em inglês e **Não** enquanto a tradução ainda não foi criada.
+- A ação da listagem passa a se chamar **Atualizar inglês** após a criação da primeira versão. Antes de substituir um texto existente, o painel pede confirmação para evitar apagar uma revisão manual sem querer.
+- O formulário de espécie agora apresenta, lado a lado em telas largas, a versão original em português e a versão pública em inglês.
+- A coluna em inglês permite ajustar nome popular, categoria, classificação, dados geológicos textuais, local, autor da descoberta, dieta, resumo, descrição e informações adicionais.
+- Nome científico, código do museu, URL, ano, coordenadas, comprimento, status e destaque permanecem bloqueados, pois não devem ser traduzidos.
+- Alterações manuais feitas nos campos em inglês são preservadas no salvamento e têm prioridade sobre a sugestão automática do DeepL naquele mesmo envio.
+
+### 2026-09-11 — Logotipo institucional
+
+- Substituída a marca provisória da navegação e do rodapé pelo logotipo oficial do Museu de Paleontologia Prof. Antonio Celso de Arruda Campos.
+- Criado o ativo `src/assets/museum-logo.png` com fundo transparente, preservando os elementos, cores e textos oficiais da marca.
+- O logotipo recebe dimensões responsivas para manter a leitura na navbar em computadores e celulares.
 
 ### 2026-08-31 — Estrutura visual do painel de acessos
 

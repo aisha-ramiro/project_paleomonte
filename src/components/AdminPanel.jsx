@@ -378,12 +378,18 @@ function translationRecord(specimen, categoryName = '') {
     description: specimen.description ?? '',
     period: specimen.geological_period ?? '',
     era: specimen.geological_era ?? '',
+    geologicalAge: specimen.geological_age ?? '',
+    geologicalFormation: specimen.geological_formation ?? '',
     location: specimen.discovery_location ?? '',
     discoveredBy: specimen.discovered_by ?? '',
     type: specimen.specimen_type ?? '',
     diet: specimen.diet ?? '',
     additionalInfo: specimen.additional_info ?? '',
   };
+}
+
+function hasEnglishTranslation(specimen) {
+  return Object.values(specimen?.translations?.en ?? {}).some((value) => typeof value === 'string' && value.trim());
 }
 
 function escapePrintHtml(value) {
@@ -444,11 +450,17 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
   const [generateQr, setGenerateQr] = useState(!specimen);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [englishForm, setEnglishForm] = useState(specimen?.translations?.en ?? {});
+  const [editedEnglishFields, setEditedEnglishFields] = useState([]);
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
   const hasExistingCover = imageDrafts.some((draft) => draft.existing && draft.isCover);
   const activeImage = imageDrafts.find((draft) => draft.id === activeImageId) ?? imageDrafts[0] ?? null;
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const updateEnglish = (field, value) => {
+    setEnglishForm((current) => ({ ...current, [field]: value }));
+    setEditedEnglishFields((current) => current.includes(field) ? current : [...current, field]);
+  };
   const updateImage = (id, changes) => setImageDrafts((current) => current.map((draft) => draft.id === id ? { ...draft, ...changes } : draft));
   const selectCover = (id) => setImageDrafts((current) => current.map((draft) => ({ ...draft, isCover: draft.id === id })));
   const removeImage = (id) => {
@@ -518,14 +530,23 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
     const { data, error: saveError } = await query;
     if (saveError) { setSaving(false); setError(saveError.message); return; }
     const warnings = [];
+    const manualEnglish = Object.fromEntries(editedEnglishFields.map((field) => [field, englishForm[field]?.trim?.() ?? englishForm[field] ?? '']));
     try {
       const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
       const english = await translateSpecimen(translationRecord(data, categoryName));
-      const translations = { ...(data.translations ?? {}), en: english };
+      const translations = { ...(data.translations ?? {}), en: { ...english, ...manualEnglish } };
       const { error: translationSaveError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
       if (translationSaveError) throw translationSaveError;
       data.translations = translations;
-    } catch (translationError) { warnings.push(`tradução em inglês: ${translationError.message}`); }
+    } catch (translationError) {
+      if (editedEnglishFields.length) {
+        const translations = { ...(data.translations ?? {}), en: { ...(data.translations?.en ?? {}), ...manualEnglish } };
+        const { error: manualTranslationError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
+        if (manualTranslationError) warnings.push(`versão em inglês: ${manualTranslationError.message}`);
+        else data.translations = translations;
+      }
+      warnings.push(`tradução em inglês: ${translationError.message}`);
+    }
     if (canManage) {
       const { error: clearCategoryError } = await supabase.from('specimen_categories').delete().eq('specimen_id', data.id);
       if (clearCategoryError) warnings.push(`categoria: ${clearCategoryError.message}`);
@@ -564,7 +585,39 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
   const currentQrCode = getQrCode(specimen);
   return <form className="admin-form specimen-form" onSubmit={submit}>
     <div className="form-heading"><div><p className="eyebrow">{specimen ? 'Edição completa' : 'Novo registro'}</p><h2>{specimen ? 'Editar espécie' : 'Cadastrar espécie'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancelar</button></div>
+    <div className="translation-form-columns">
+      <section className="translation-form-panel">
+        <div className="translation-form-heading"><h3>Português</h3><p>Informações originais da espécie.</p></div>
     <div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div>
+      </section>
+      <section className="translation-form-panel english-panel">
+        <div className="translation-form-heading"><h3>English</h3><p>Versão pública em inglês. Campos neutros ficam bloqueados.</p></div>
+        <div className="form-grid">
+          <label>Museum code<input value={form.museum_code} disabled/></label>
+          <label>Scientific name<input value={form.scientific_name} disabled/></label>
+          <label>Common name<input value={englishForm.commonName ?? ''} onChange={(event) => updateEnglish('commonName', event.target.value)}/></label>
+          <label>Slug / URL<input value={form.slug} disabled/></label>
+          <label>Category<input value={englishForm.category ?? ''} onChange={(event) => updateEnglish('category', event.target.value)}/></label>
+          <label>Type<input value={englishForm.type ?? ''} onChange={(event) => updateEnglish('type', event.target.value)}/></label>
+          <label>Geological period<input value={englishForm.period ?? ''} onChange={(event) => updateEnglish('period', event.target.value)}/></label>
+          <label>Geological era<input value={englishForm.era ?? ''} onChange={(event) => updateEnglish('era', event.target.value)}/></label>
+          <label>Geological age<input value={englishForm.geologicalAge ?? ''} onChange={(event) => updateEnglish('geologicalAge', event.target.value)}/></label>
+          <label>Geological formation<input value={englishForm.geologicalFormation ?? ''} onChange={(event) => updateEnglish('geologicalFormation', event.target.value)}/></label>
+          <label>Discovery location<input value={englishForm.location ?? ''} onChange={(event) => updateEnglish('location', event.target.value)}/></label>
+          <label>Discovery year<input value={form.discovery_year} disabled/></label>
+          <label>Discovered by<input value={englishForm.discoveredBy ?? ''} onChange={(event) => updateEnglish('discoveredBy', event.target.value)}/></label>
+          <label>Latitude<input value={form.latitude} disabled/></label>
+          <label>Longitude<input value={form.longitude} disabled/></label>
+          <label>Diet<input value={englishForm.diet ?? ''} onChange={(event) => updateEnglish('diet', event.target.value)}/></label>
+          <label>Length (meters)<input value={form.length_meters} disabled/></label>
+          <label>Status<input value={form.status} disabled/></label>
+          <label className="check-label">Featured on home<input type="checkbox" checked={form.is_featured} disabled/></label>
+          <label className="full">Summary<input value={englishForm.summary ?? ''} onChange={(event) => updateEnglish('summary', event.target.value)} maxLength="280"/></label>
+          <label className="full">Description<textarea value={englishForm.description ?? ''} onChange={(event) => updateEnglish('description', event.target.value)} rows="6"/></label>
+          <label className="full">Additional information<textarea value={englishForm.additionalInfo ?? ''} onChange={(event) => updateEnglish('additionalInfo', event.target.value)} rows="4"/></label>
+        </div>
+      </section>
+    </div>
     <fieldset className="asset-fieldset"><legend>Fotos da espécie</legend><p>Selecione quantas fotos desejar. Ajuste cada foto nova dentro da moldura antes de salvar: o enquadramento 4:3 será exatamente o usado no catálogo.</p><label className="upload-label">Adicionar fotos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addImages}/></label>{imageDrafts.length > 0 && <div className="image-workspace"><div className="image-draft-list">{imageDrafts.map((draft, index) => <article className={draft.id === activeImage?.id ? 'active' : ''} key={draft.id}><button type="button" onClick={() => setActiveImageId(draft.id)}><img src={draft.previewUrl} alt=""/><span>Foto {index + 1}{draft.isCover ? ' · Capa' : ''}{draft.existing ? ' · Salva' : ''}</span></button><button type="button" className="image-draft-remove" onClick={() => removeImage(draft.id)} aria-label={`Remover foto ${index + 1}`}>×</button></article>)}</div>{activeImage && (activeImage.existing ? <div className="image-editing existing-image-editing"><h3>Foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1} já salva</h3><img src={activeImage.previewUrl} alt={activeImage.altText || 'Foto cadastrada da espécie'}/><p>Esta foto já está no catálogo. Você pode removê-la ou marcá-la como capa. Para alterar o enquadramento, remova-a e envie uma nova versão.</p><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div> : <div className="image-editing"><h3>Enquadrar foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1}</h3><ImageCropEditor draft={activeImage} onChange={(changes) => updateImage(activeImage.id, changes)}/><label>Descrição acessível desta foto *<textarea rows="3" value={activeImage.altText} onChange={(event) => updateImage(activeImage.id, { altText: event.target.value })} placeholder="Descreva o que aparece nesta imagem."/></label><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div>)}</div>}<p className="helper-text">As fotos salvas aparecem aqui para consulta, definição de capa ou exclusão. A primeira foto nova é escolhida como capa automaticamente apenas quando não houver uma capa selecionada.</p></fieldset>
     {canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend>{currentQrCode?.image_path && <p>Há um QR Code ativo (versão {currentQrCode.version}). Depois de salvar, use “Imprimir QR Code” na listagem de espécies para visualizar, imprimir ou salvar em PDF.</p>}<label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}
     {error && <p className="form-error" role="alert">{error}</p>}
@@ -598,6 +651,7 @@ function SpeciesManager({ roles, onCatalogChanged }) {
   };
 
   const translate = async (specimen) => {
+    if (hasEnglishTranslation(specimen) && !window.confirm(`Gerar uma nova versão em inglês substituirá as alterações manuais de “${specimen.scientific_name}”. Deseja continuar?`)) return;
     setError(''); setNotice('');
     try {
       const categoryName = specimen.specimen_categories?.find((item) => item.is_primary)?.categories?.name ?? specimen.specimen_categories?.[0]?.categories?.name ?? '';
@@ -612,7 +666,15 @@ function SpeciesManager({ roles, onCatalogChanged }) {
   };
 
   if (editing) return <SpecimenForm specimen={editing === 'new' ? null : editing} roles={roles} onCancel={() => setEditing(null)} onSaved={(_data, warnings) => { setEditing(null); setNotice(warnings.length ? `Espécie salva, mas houve pendência em: ${warnings.join(' | ')}` : 'Espécie, categoria, mídias e QR Code salvos.'); onCatalogChanged?.(); load(); }}/>;
-  return <section className="admin-section"><div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>{notice && <p className="form-success">{notice}</p>}{error && <p className="form-error" role="alert">{error}</p>}{loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button><button className="text-button" onClick={() => translate(specimen)}>Gerar inglês</button><PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>)}</tbody></table></div>}</section>;
+  return <section className="admin-section">
+    <div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>
+    {notice && <p className="form-success">{notice}</p>}
+    {error && <p className="form-error" role="alert">{error}</p>}
+    {loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Inglês</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => {
+      const translated = hasEnglishTranslation(specimen);
+      return <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`translation-status ${translated ? 'yes' : 'no'}`}>{translated ? 'Sim' : 'Não'}</span></td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button><button className="text-button" onClick={() => translate(specimen)}>{translated ? 'Atualizar inglês' : 'Gerar inglês'}</button><PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>;
+    })}</tbody></table></div>}
+  </section>;
 }
 
 function CategoriesManager() {

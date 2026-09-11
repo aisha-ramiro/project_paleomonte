@@ -2,6 +2,7 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import heroImage from "./assets/museum-hero-anuratitan-warm.png";
+import museumLogo from "./assets/museum-logo.png";
 import { AdminPanel } from "./components/AdminPanel";
 import { usePublicAccessTracking } from "./services/accessMetrics";
 import { usePublicCatalog } from "./services/publicCatalog";
@@ -36,15 +37,11 @@ function Brand({ inverse = false }) {
       href="#/"
       aria-label="PaleoMonte, início"
     >
-      <span className="brand-mark">☼</span>
-      <span>
-        <strong>
-          Museu de
-          <br />
-          Paleontologia
-        </strong>
-        <small>Prof. Antonio Celso de Arruda Campos</small>
-      </span>
+      <img
+        className="brand-logo"
+        src={museumLogo}
+        alt="Museu de Paleontologia Prof. Antonio Celso de Arruda Campos"
+      />
     </a>
   );
 }

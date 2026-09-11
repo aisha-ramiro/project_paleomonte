@@ -1,5 +1,5 @@
 const allowedFields = [
-  'commonName', 'category', 'summary', 'description', 'period', 'era',
+  'commonName', 'category', 'summary', 'description', 'period', 'era', 'geologicalAge', 'geologicalFormation',
   'location', 'discoveredBy', 'type', 'diet', 'additionalInfo',
 ];
 
