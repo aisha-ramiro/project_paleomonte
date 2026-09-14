@@ -27,6 +27,8 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => ({}));
   const record = body?.record ?? {};
+  const targetLanguage = body?.targetLanguage;
+  if (!['EN-US', 'ES'].includes(targetLanguage)) return json({ error: 'Idioma de tradução inválido.' }, 400);
   const fields = allowedFields.filter((field) => typeof record[field] === 'string' && record[field].trim());
   if (!fields.length) return json({ translation: {} });
 
@@ -35,7 +37,7 @@ export async function POST(request) {
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `DeepL-Auth-Key ${key}` },
-    body: JSON.stringify({ text: fields.map((field) => record[field]), source_lang: 'PT', target_lang: 'EN-US', formality: 'default' }),
+    body: JSON.stringify({ text: fields.map((field) => record[field]), source_lang: 'PT', target_lang: targetLanguage, formality: 'default' }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !Array.isArray(payload.translations)) return json({ error: 'O tradutor não respondeu como esperado.' }, 502);

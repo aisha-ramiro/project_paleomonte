@@ -357,8 +357,8 @@ function narrationValue(value, language) {
 function specimenNarration(specimen, language) {
   const text = copy[language].specimen;
   return [
-    `${language === 'en' ? 'Scientific name' : 'Nome científico'}. ${narrationValue(specimen.name, language)}.`,
-    `${language === 'en' ? 'Common name' : 'Nome popular'}. ${narrationValue(specimen.commonName, language)}.`,
+    `${text.scientificName}. ${narrationValue(specimen.name, language)}.`,
+    `${text.commonName}. ${narrationValue(specimen.commonName, language)}.`,
     `${text.period} ${narrationValue(specimen.period, language)}.`,
     `${text.location} ${narrationValue(specimen.location, language)}.`,
     `${text.about}. ${narrationValue(specimen.description, language)}`,

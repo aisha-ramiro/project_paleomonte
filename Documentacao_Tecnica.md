@@ -30,8 +30,8 @@ A interface pública e o painel administrativo estão conectados ao Supabase. Os
 | Banco de dados e autenticação | PostgreSQL + Auth via Supabase | Dados do acervo, papéis de acesso, RLS e login administrativo. |
 | Armazenamento | Supabase Storage | Bucket privado para imagens, áudios e arquivos de QR Code. |
 | Métricas | PostgreSQL via Supabase | Contadores diários agregados de acessos do site e de espécies. |
-| Tradução automática | DeepL API + Vercel Function | Geração protegida das versões em inglês das fichas, sem expor a chave no navegador. |
-| Leitura em voz alta | Web Speech API (`SpeechSynthesis`) | Leitura nativa da ficha pública em português ou inglês, sem criar arquivo de áudio. |
+| Tradução automática | DeepL API + Vercel Function | Geração protegida das versões em inglês e espanhol das fichas, sem expor a chave no navegador. |
+| Leitura em voz alta | Web Speech API (`SpeechSynthesis`) | Leitura nativa da ficha pública em português, inglês ou espanhol, sem criar arquivo de áudio. |
 
 ### Bibliotecas instaladas
 
@@ -72,11 +72,11 @@ Exemplo de rota individual atualmente disponível:
 - Cards clicáveis que levam à página individual do espécime.
 - Galeria funcional de imagens, com seleção da foto exibida na página da espécie.
 - Leitura em voz alta nativa da ficha pública, acionada por play.
-- Interface pública completa em português e inglês, com seleção persistente de idioma na navegação.
+- Interface pública completa em português, inglês e espanhol, com seleção persistente de idioma na navegação.
 - Seletor independente de idioma nas fichas de espécie, pensado para acessos diretos por QR Code.
-- Tradução automática para inglês durante o salvamento de espécies; o nome científico é preservado sem alteração.
-- Indicador **Inglês: Sim/Não** na listagem administrativa de espécies.
-- Edição manual dos campos traduzíveis em inglês ao lado da versão em português; dados científicos, identificadores, anos e valores numéricos permanecem bloqueados na coluna em inglês.
+- Tradução automática para inglês e espanhol durante o salvamento de espécies; o nome científico é preservado sem alteração.
+- Indicadores **Inglês: Sim/Não** e **Espanhol: Sim/Não** na listagem administrativa de espécies.
+- Edição manual dos campos traduzíveis em inglês e espanhol ao lado da versão em português; dados científicos, identificadores, anos e valores numéricos permanecem bloqueados nos formulários estrangeiros.
 - Controle demonstrativo de aumento de texto.
 - Controle demonstrativo de alto contraste.
 - Dashboard administrativo com métricas do acervo e acompanhamento agregado de acessos por período.
@@ -348,6 +348,16 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Substituída a marca provisória da navegação e do rodapé pelo logotipo oficial do Museu de Paleontologia Prof. Antonio Celso de Arruda Campos.
 - Criado o ativo `src/assets/museum-logo.png` com fundo transparente, preservando os elementos, cores e textos oficiais da marca.
 - O logotipo recebe dimensões responsivas para manter a leitura na navbar em computadores e celulares.
+
+### 2026-09-14 — Espanhol e organização dos formulários de tradução
+
+- Adicionado espanhol ao seletor público de idiomas, com a bandeira da Espanha na navbar e na ficha individual de espécies.
+- Traduzidos para espanhol os textos públicos da página inicial, catálogo, sobre o museu, acessibilidade, rodapé e controles da ficha.
+- A leitura nativa da ficha usa `es-ES` ao selecionar espanhol e mantém o nome científico sem alteração.
+- A Function de tradução agora aceita os destinos `EN-US` e `ES` do DeepL, gerando as duas versões durante o salvamento de uma espécie.
+- A listagem administrativa ganhou a coluna **Espanhol**, além do comando individual para gerar ou atualizar essa tradução.
+- As revisões em inglês e espanhol foram transformadas em painéis recolhidos ao lado do formulário em português; cada idioma é aberto somente quando a equipe precisa editar seu conteúdo.
+- A coluna JSON `translations` existente continua armazenando as versões `en` e `es`, portanto não foi necessária uma nova migration.
 
 ### 2026-08-31 — Estrutura visual do painel de acessos
 

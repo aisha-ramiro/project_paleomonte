@@ -23,14 +23,14 @@ Nunca use nem exponha chaves `sb_secret_...`, `service_role`, a senha do banco o
 
 ## Tradução automática das fichas
 
-A tradução da ficha pública para inglês usa a API do DeepL por meio da Function `api/translate.js` da Vercel. O nome científico não é enviado ao tradutor e permanece idêntico nos dois idiomas.
+A tradução da ficha pública para inglês e espanhol usa a API do DeepL por meio da Function `api/translate.js` da Vercel. O nome científico não é enviado ao tradutor e permanece idêntico em todos os idiomas.
 
 1. Crie uma chave de API no DeepL.
 2. Na Vercel, abra o projeto em **Settings → Environment Variables** e cadastre `DEEPL_API_KEY` para os ambientes **Production** e **Preview**.
 3. Não use o prefixo `VITE_` nessa variável e não a adicione ao arquivo `.env.local` usado pelo navegador: ela é uma credencial privada da função de servidor.
 4. Faça um novo deploy da Vercel depois de salvar a variável.
 
-Em cada salvamento de espécie, o painel tenta gerar a versão em inglês e a armazena na coluna `specimens.translations`. Para registros já existentes, a ação **Gerar inglês** na listagem de espécies cria ou atualiza essa versão manualmente. A equipe pode revisar e substituir essas traduções diretamente no banco quando necessário.
+Em cada salvamento de espécie, o painel tenta gerar as versões em inglês e espanhol e as armazena na coluna `specimens.translations`. Para registros já existentes, as ações **Gerar inglês** e **Gerar espanhol** na listagem de espécies criam ou atualizam cada versão manualmente. A equipe pode revisar essas traduções pelos painéis recolhíveis ao lado do formulário em português.
 
 ## Papéis de acesso
 

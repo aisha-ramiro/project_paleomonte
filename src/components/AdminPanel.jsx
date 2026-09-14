@@ -388,8 +388,50 @@ function translationRecord(specimen, categoryName = '') {
   };
 }
 
-function hasEnglishTranslation(specimen) {
-  return Object.values(specimen?.translations?.en ?? {}).some((value) => typeof value === 'string' && value.trim());
+const foreignLanguages = [
+  { code: 'en', title: 'English', flag: '🇺🇸', deeplTarget: 'EN-US', description: 'Versão pública em inglês.' },
+  { code: 'es', title: 'Español', flag: '🇪🇸', deeplTarget: 'ES', description: 'Versão pública em espanhol.' },
+];
+
+const foreignFieldLabels = {
+  en: { museumCode: 'Museum code', scientificName: 'Scientific name', commonName: 'Common name', category: 'Category', type: 'Type', period: 'Geological period', era: 'Geological era', age: 'Geological age', formation: 'Geological formation', location: 'Discovery location', year: 'Discovery year', discoveredBy: 'Discovered by', diet: 'Diet', length: 'Length (meters)', featured: 'Featured on home', summary: 'Summary', description: 'Description', additionalInfo: 'Additional information' },
+  es: { museumCode: 'Código del museo', scientificName: 'Nombre científico', commonName: 'Nombre común', category: 'Categoría', type: 'Tipo', period: 'Período geológico', era: 'Era geológica', age: 'Edad geológica', formation: 'Formación geológica', location: 'Lugar del descubrimiento', year: 'Año del descubrimiento', discoveredBy: 'Descubierto por', diet: 'Dieta', length: 'Longitud (metros)', featured: 'Destacar en la página inicial', summary: 'Resumen', description: 'Descripción', additionalInfo: 'Información adicional' },
+};
+
+function hasTranslation(specimen, language) {
+  return Object.values(specimen?.translations?.[language] ?? {}).some((value) => typeof value === 'string' && value.trim());
+}
+
+function ForeignTranslationPanel({ language, form, translation, onChange }) {
+  const meta = foreignLanguages.find((item) => item.code === language);
+  const label = foreignFieldLabels[language];
+  return <details className="foreign-translation-panel">
+    <summary><span><b>{meta.flag} {meta.title}</b><small>{meta.description} Abra para revisar manualmente.</small></span><span className="foreign-translation-toggle" aria-hidden="true">⌄</span></summary>
+    <div className="form-grid foreign-form-grid">
+      <label>{label.museumCode}<input value={form.museum_code} disabled/></label>
+      <label>{label.scientificName}<input value={form.scientific_name} disabled/></label>
+      <label>{label.commonName}<input value={translation.commonName ?? ''} onChange={(event) => onChange('commonName', event.target.value)}/></label>
+      <label>Slug / URL<input value={form.slug} disabled/></label>
+      <label>{label.category}<input value={translation.category ?? ''} onChange={(event) => onChange('category', event.target.value)}/></label>
+      <label>{label.type}<input value={translation.type ?? ''} onChange={(event) => onChange('type', event.target.value)}/></label>
+      <label>{label.period}<input value={translation.period ?? ''} onChange={(event) => onChange('period', event.target.value)}/></label>
+      <label>{label.era}<input value={translation.era ?? ''} onChange={(event) => onChange('era', event.target.value)}/></label>
+      <label>{label.age}<input value={translation.geologicalAge ?? ''} onChange={(event) => onChange('geologicalAge', event.target.value)}/></label>
+      <label>{label.formation}<input value={translation.geologicalFormation ?? ''} onChange={(event) => onChange('geologicalFormation', event.target.value)}/></label>
+      <label>{label.location}<input value={translation.location ?? ''} onChange={(event) => onChange('location', event.target.value)}/></label>
+      <label>{label.year}<input value={form.discovery_year} disabled/></label>
+      <label>{label.discoveredBy}<input value={translation.discoveredBy ?? ''} onChange={(event) => onChange('discoveredBy', event.target.value)}/></label>
+      <label>Latitude<input value={form.latitude} disabled/></label>
+      <label>Longitude<input value={form.longitude} disabled/></label>
+      <label>{label.diet}<input value={translation.diet ?? ''} onChange={(event) => onChange('diet', event.target.value)}/></label>
+      <label>{label.length}<input value={form.length_meters} disabled/></label>
+      <label>Status<input value={form.status} disabled/></label>
+      <label className="check-label">{label.featured}<input type="checkbox" checked={form.is_featured} disabled/></label>
+      <label className="full">{label.summary}<input value={translation.summary ?? ''} onChange={(event) => onChange('summary', event.target.value)} maxLength="280"/></label>
+      <label className="full">{label.description}<textarea value={translation.description ?? ''} onChange={(event) => onChange('description', event.target.value)} rows="6"/></label>
+      <label className="full">{label.additionalInfo}<textarea value={translation.additionalInfo ?? ''} onChange={(event) => onChange('additionalInfo', event.target.value)} rows="4"/></label>
+    </div>
+  </details>;
 }
 
 function escapePrintHtml(value) {
@@ -450,16 +492,19 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
   const [generateQr, setGenerateQr] = useState(!specimen);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [englishForm, setEnglishForm] = useState(specimen?.translations?.en ?? {});
-  const [editedEnglishFields, setEditedEnglishFields] = useState([]);
+  const [foreignForms, setForeignForms] = useState({
+    en: specimen?.translations?.en ?? {},
+    es: specimen?.translations?.es ?? {},
+  });
+  const [editedForeignFields, setEditedForeignFields] = useState({ en: [], es: [] });
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
   const hasExistingCover = imageDrafts.some((draft) => draft.existing && draft.isCover);
   const activeImage = imageDrafts.find((draft) => draft.id === activeImageId) ?? imageDrafts[0] ?? null;
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  const updateEnglish = (field, value) => {
-    setEnglishForm((current) => ({ ...current, [field]: value }));
-    setEditedEnglishFields((current) => current.includes(field) ? current : [...current, field]);
+  const updateForeign = (language, field, value) => {
+    setForeignForms((current) => ({ ...current, [language]: { ...current[language], [field]: value } }));
+    setEditedForeignFields((current) => ({ ...current, [language]: current[language].includes(field) ? current[language] : [...current[language], field] }));
   };
   const updateImage = (id, changes) => setImageDrafts((current) => current.map((draft) => draft.id === id ? { ...draft, ...changes } : draft));
   const selectCover = (id) => setImageDrafts((current) => current.map((draft) => ({ ...draft, isCover: draft.id === id })));
@@ -530,22 +575,27 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
     const { data, error: saveError } = await query;
     if (saveError) { setSaving(false); setError(saveError.message); return; }
     const warnings = [];
-    const manualEnglish = Object.fromEntries(editedEnglishFields.map((field) => [field, englishForm[field]?.trim?.() ?? englishForm[field] ?? '']));
-    try {
-      const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
-      const english = await translateSpecimen(translationRecord(data, categoryName));
-      const translations = { ...(data.translations ?? {}), en: { ...english, ...manualEnglish } };
-      const { error: translationSaveError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
-      if (translationSaveError) throw translationSaveError;
-      data.translations = translations;
-    } catch (translationError) {
-      if (editedEnglishFields.length) {
-        const translations = { ...(data.translations ?? {}), en: { ...(data.translations?.en ?? {}), ...manualEnglish } };
-        const { error: manualTranslationError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
-        if (manualTranslationError) warnings.push(`versão em inglês: ${manualTranslationError.message}`);
-        else data.translations = translations;
+    const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
+    const translations = { ...(data.translations ?? {}) };
+    let translationsChanged = false;
+    for (const language of foreignLanguages) {
+      const manualTranslation = Object.fromEntries(editedForeignFields[language.code].map((field) => [field, foreignForms[language.code][field]?.trim?.() ?? foreignForms[language.code][field] ?? '']));
+      try {
+        const translated = await translateSpecimen(translationRecord(data, categoryName), language.deeplTarget);
+        translations[language.code] = { ...translated, ...manualTranslation };
+        translationsChanged = true;
+      } catch (translationError) {
+        if (editedForeignFields[language.code].length) {
+          translations[language.code] = { ...(translations[language.code] ?? {}), ...manualTranslation };
+          translationsChanged = true;
+        }
+        warnings.push(`tradução em ${language.code === 'en' ? 'inglês' : 'espanhol'}: ${translationError.message}`);
       }
-      warnings.push(`tradução em inglês: ${translationError.message}`);
+    }
+    if (translationsChanged) {
+      const { error: translationSaveError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
+      if (translationSaveError) warnings.push(`traduções: ${translationSaveError.message}`);
+      else data.translations = translations;
     }
     if (canManage) {
       const { error: clearCategoryError } = await supabase.from('specimen_categories').delete().eq('specimen_id', data.id);
@@ -590,33 +640,9 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
         <div className="translation-form-heading"><h3>Português</h3><p>Informações originais da espécie.</p></div>
     <div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div>
       </section>
-      <section className="translation-form-panel english-panel">
-        <div className="translation-form-heading"><h3>English</h3><p>Versão pública em inglês. Campos neutros ficam bloqueados.</p></div>
-        <div className="form-grid">
-          <label>Museum code<input value={form.museum_code} disabled/></label>
-          <label>Scientific name<input value={form.scientific_name} disabled/></label>
-          <label>Common name<input value={englishForm.commonName ?? ''} onChange={(event) => updateEnglish('commonName', event.target.value)}/></label>
-          <label>Slug / URL<input value={form.slug} disabled/></label>
-          <label>Category<input value={englishForm.category ?? ''} onChange={(event) => updateEnglish('category', event.target.value)}/></label>
-          <label>Type<input value={englishForm.type ?? ''} onChange={(event) => updateEnglish('type', event.target.value)}/></label>
-          <label>Geological period<input value={englishForm.period ?? ''} onChange={(event) => updateEnglish('period', event.target.value)}/></label>
-          <label>Geological era<input value={englishForm.era ?? ''} onChange={(event) => updateEnglish('era', event.target.value)}/></label>
-          <label>Geological age<input value={englishForm.geologicalAge ?? ''} onChange={(event) => updateEnglish('geologicalAge', event.target.value)}/></label>
-          <label>Geological formation<input value={englishForm.geologicalFormation ?? ''} onChange={(event) => updateEnglish('geologicalFormation', event.target.value)}/></label>
-          <label>Discovery location<input value={englishForm.location ?? ''} onChange={(event) => updateEnglish('location', event.target.value)}/></label>
-          <label>Discovery year<input value={form.discovery_year} disabled/></label>
-          <label>Discovered by<input value={englishForm.discoveredBy ?? ''} onChange={(event) => updateEnglish('discoveredBy', event.target.value)}/></label>
-          <label>Latitude<input value={form.latitude} disabled/></label>
-          <label>Longitude<input value={form.longitude} disabled/></label>
-          <label>Diet<input value={englishForm.diet ?? ''} onChange={(event) => updateEnglish('diet', event.target.value)}/></label>
-          <label>Length (meters)<input value={form.length_meters} disabled/></label>
-          <label>Status<input value={form.status} disabled/></label>
-          <label className="check-label">Featured on home<input type="checkbox" checked={form.is_featured} disabled/></label>
-          <label className="full">Summary<input value={englishForm.summary ?? ''} onChange={(event) => updateEnglish('summary', event.target.value)} maxLength="280"/></label>
-          <label className="full">Description<textarea value={englishForm.description ?? ''} onChange={(event) => updateEnglish('description', event.target.value)} rows="6"/></label>
-          <label className="full">Additional information<textarea value={englishForm.additionalInfo ?? ''} onChange={(event) => updateEnglish('additionalInfo', event.target.value)} rows="4"/></label>
-        </div>
-      </section>
+      <aside className="foreign-translation-stack">
+        {foreignLanguages.map((language) => <ForeignTranslationPanel key={language.code} language={language.code} form={form} translation={foreignForms[language.code]} onChange={(field, value) => updateForeign(language.code, field, value)} />)}
+      </aside>
     </div>
     <fieldset className="asset-fieldset"><legend>Fotos da espécie</legend><p>Selecione quantas fotos desejar. Ajuste cada foto nova dentro da moldura antes de salvar: o enquadramento 4:3 será exatamente o usado no catálogo.</p><label className="upload-label">Adicionar fotos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addImages}/></label>{imageDrafts.length > 0 && <div className="image-workspace"><div className="image-draft-list">{imageDrafts.map((draft, index) => <article className={draft.id === activeImage?.id ? 'active' : ''} key={draft.id}><button type="button" onClick={() => setActiveImageId(draft.id)}><img src={draft.previewUrl} alt=""/><span>Foto {index + 1}{draft.isCover ? ' · Capa' : ''}{draft.existing ? ' · Salva' : ''}</span></button><button type="button" className="image-draft-remove" onClick={() => removeImage(draft.id)} aria-label={`Remover foto ${index + 1}`}>×</button></article>)}</div>{activeImage && (activeImage.existing ? <div className="image-editing existing-image-editing"><h3>Foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1} já salva</h3><img src={activeImage.previewUrl} alt={activeImage.altText || 'Foto cadastrada da espécie'}/><p>Esta foto já está no catálogo. Você pode removê-la ou marcá-la como capa. Para alterar o enquadramento, remova-a e envie uma nova versão.</p><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div> : <div className="image-editing"><h3>Enquadrar foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1}</h3><ImageCropEditor draft={activeImage} onChange={(changes) => updateImage(activeImage.id, changes)}/><label>Descrição acessível desta foto *<textarea rows="3" value={activeImage.altText} onChange={(event) => updateImage(activeImage.id, { altText: event.target.value })} placeholder="Descreva o que aparece nesta imagem."/></label><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div>)}</div>}<p className="helper-text">As fotos salvas aparecem aqui para consulta, definição de capa ou exclusão. A primeira foto nova é escolhida como capa automaticamente apenas quando não houver uma capa selecionada.</p></fieldset>
     {canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend>{currentQrCode?.image_path && <p>Há um QR Code ativo (versão {currentQrCode.version}). Depois de salvar, use “Imprimir QR Code” na listagem de espécies para visualizar, imprimir ou salvar em PDF.</p>}<label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}
@@ -650,16 +676,17 @@ function SpeciesManager({ roles, onCatalogChanged }) {
     load();
   };
 
-  const translate = async (specimen) => {
-    if (hasEnglishTranslation(specimen) && !window.confirm(`Gerar uma nova versão em inglês substituirá as alterações manuais de “${specimen.scientific_name}”. Deseja continuar?`)) return;
+  const translate = async (specimen, language) => {
+    const languageName = language.code === 'en' ? 'inglês' : 'espanhol';
+    if (hasTranslation(specimen, language.code) && !window.confirm(`Gerar uma nova versão em ${languageName} substituirá as alterações manuais de “${specimen.scientific_name}”. Deseja continuar?`)) return;
     setError(''); setNotice('');
     try {
       const categoryName = specimen.specimen_categories?.find((item) => item.is_primary)?.categories?.name ?? specimen.specimen_categories?.[0]?.categories?.name ?? '';
-      const english = await translateSpecimen(translationRecord(specimen, categoryName));
-      const translations = { ...(specimen.translations ?? {}), en: english };
+      const translated = await translateSpecimen(translationRecord(specimen, categoryName), language.deeplTarget);
+      const translations = { ...(specimen.translations ?? {}), [language.code]: translated };
       const { error: translationError } = await supabase.from('specimens').update({ translations }).eq('id', specimen.id);
       if (translationError) throw translationError;
-      setNotice(`Tradução em inglês gerada para “${specimen.scientific_name}”.`);
+      setNotice(`Tradução em ${languageName} gerada para “${specimen.scientific_name}”.`);
       onCatalogChanged?.();
       load();
     } catch (translationError) { setError(translationError.message); }
@@ -670,9 +697,10 @@ function SpeciesManager({ roles, onCatalogChanged }) {
     <div className="section-toolbar"><div><p className="eyebrow">Catálogo administrativo</p><h2>Espécies</h2></div><button className="button green" onClick={() => setEditing('new')}>＋ Nova espécie</button></div>
     {notice && <p className="form-success">{notice}</p>}
     {error && <p className="form-error" role="alert">{error}</p>}
-    {loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Inglês</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => {
-      const translated = hasEnglishTranslation(specimen);
-      return <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`translation-status ${translated ? 'yes' : 'no'}`}>{translated ? 'Sim' : 'Não'}</span></td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button><button className="text-button" onClick={() => translate(specimen)}>{translated ? 'Atualizar inglês' : 'Gerar inglês'}</button><PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>;
+    {loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Inglês</th><th>Espanhol</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => {
+      const english = hasTranslation(specimen, 'en');
+      const spanish = hasTranslation(specimen, 'es');
+      return <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`translation-status ${english ? 'yes' : 'no'}`}>{english ? 'Sim' : 'Não'}</span></td><td><span className={`translation-status ${spanish ? 'yes' : 'no'}`}>{spanish ? 'Sim' : 'Não'}</span></td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button>{foreignLanguages.map((language) => <button className="text-button" key={language.code} onClick={() => translate(specimen, language)}>{hasTranslation(specimen, language.code) ? `Atualizar ${language.code === 'en' ? 'inglês' : 'espanhol'}` : `Gerar ${language.code === 'en' ? 'inglês' : 'espanhol'}`}</button>)}<PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>;
     })}</tbody></table></div>}
   </section>;
 }
