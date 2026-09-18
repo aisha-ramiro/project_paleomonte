@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import "./dark-mode.css";
 import heroImage from "./assets/museum-hero-anuratitan-warm.png";
 import museumLogo from "./assets/museum-logo.png";
 import { AdminPanel } from "./components/AdminPanel";
@@ -629,7 +630,7 @@ function About({ language }) {
   );
 }
 
-function Accessibility({ language, textScale, onIncreaseText, onDecreaseText }) {
+function Accessibility({ language, textScale, onIncreaseText, onDecreaseText, darkMode, onToggleDarkMode }) {
   const text = copy[language].accessibility;
   const percentage = Math.round(textScale * 100);
   return (
@@ -645,9 +646,13 @@ function Accessibility({ language, textScale, onIncreaseText, onDecreaseText }) 
           <Icon>A−</Icon>{text.decrease}
         </button>
         <span className="text-scale-status" aria-live="polite">{percentage}%</span>
-        <button type="button" onClick={() => document.body.classList.toggle("contrast")}>
-          <Icon>◐</Icon>{text.contrast}
-        </button>
+        <div className="dark-mode-control">
+          <span className="dark-mode-label"><Icon>◐</Icon>{text.darkMode}</span>
+          <label className="switch">
+            <input type="checkbox" checked={darkMode} onChange={onToggleDarkMode} aria-label={text.darkMode} />
+            <span className="switch-slider" aria-hidden="true" />
+          </label>
+        </div>
       </div>
       <div className="access-grid">
         <article>
@@ -671,6 +676,7 @@ function Accessibility({ language, textScale, onIncreaseText, onDecreaseText }) 
 }
 
 const TEXT_SCALE_STORAGE_KEY = "paleomonte-text-scale";
+const DARK_MODE_STORAGE_KEY = "paleomonte-dark-mode";
 const MIN_TEXT_SCALE = 0.9;
 const MAX_TEXT_SCALE = 1.2;
 const TEXT_SCALE_STEP = 0.1;
@@ -682,17 +688,27 @@ function readTextScale() {
     : 1;
 }
 
+function readDarkMode() {
+  return window.localStorage.getItem(DARK_MODE_STORAGE_KEY) === "true";
+}
+
 function App() {
   const route = useRoute();
   const [language, setLanguage] = useState(() => window.localStorage.getItem('paleomonte-language') || 'pt');
   const [textScale, setTextScale] = useState(readTextScale);
+  const [darkMode, setDarkMode] = useState(readDarkMode);
   useEffect(() => window.localStorage.setItem('paleomonte-language', language), [language]);
   useEffect(() => {
     window.localStorage.setItem(TEXT_SCALE_STORAGE_KEY, String(textScale));
     document.documentElement.style.setProperty("--text-scale", String(textScale));
   }, [textScale]);
+  useEffect(() => {
+    window.localStorage.setItem(DARK_MODE_STORAGE_KEY, String(darkMode));
+    document.documentElement.classList.toggle("dark-mode", darkMode);
+  }, [darkMode]);
   const increaseText = () => setTextScale((current) => Math.min(MAX_TEXT_SCALE, Number((current + TEXT_SCALE_STEP).toFixed(1))));
   const decreaseText = () => setTextScale((current) => Math.max(MIN_TEXT_SCALE, Number((current - TEXT_SCALE_STEP).toFixed(1))));
+  const toggleDarkMode = () => setDarkMode((current) => !current);
   const passwordSetup =
     window.location.pathname.replace(/\/+$/, "") === "/definir-senha";
   usePublicAccessTracking(passwordSetup ? "/admin" : route);
@@ -711,7 +727,7 @@ function App() {
       />
     );
   else if (route === "/sobre") content = <About language={language} />;
-  else if (route === "/acessibilidade") content = <Accessibility language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} />;
+  else if (route === "/acessibilidade") content = <Accessibility language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />;
   else if (route === "/admin")
     content = <AdminPanel onCatalogChanged={reload} />;
   else content = <Home specimens={specimens} loading={loading} language={language} />;
