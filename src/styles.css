@@ -44,3 +44,15 @@
 
 /* Revisões em idiomas estrangeiros ficam recolhidas até que a equipe precise editá-las. */
 .translation-form-columns{align-items:start}.foreign-translation-stack{display:grid;gap:12px;min-width:0}.foreign-translation-panel{border:1px solid var(--line);border-radius:7px;background:#fcfaf5;overflow:hidden}.foreign-translation-panel summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px;cursor:pointer;list-style:none}.foreign-translation-panel summary::-webkit-details-marker{display:none}.foreign-translation-panel summary b{display:block;color:var(--green);font-size:13px}.foreign-translation-panel summary small{display:block;margin-top:3px;color:var(--muted);font-size:9px;line-height:1.45}.foreign-translation-toggle{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;color:var(--green);font-size:18px;transition:transform .2s;background:#edf3ef}.foreign-translation-panel[open] .foreign-translation-toggle{transform:rotate(180deg)}.foreign-form-grid{padding:0 16px 16px;border-top:1px solid var(--line)}.foreign-form-grid input:disabled{background:#f1eee7;color:#756f64;cursor:not-allowed}@media(max-width:960px){.foreign-translation-stack{margin-top:2px}}
+
+
+/* Escala de leitura: limites seguros entre 90% e 120%, persistida pela aplicação. */
+:root{--text-scale:1}
+@supports (zoom:1){html{zoom:var(--text-scale)}}
+.footer-text-controls button{display:block;width:100%;margin:9px 0;padding:0;border:0;background:transparent;color:#e9e0cf;font:inherit;font-size:10px;text-align:left;cursor:pointer}
+.footer-text-controls button b{float:right;margin-left:9px}
+.footer-text-controls button:hover{text-decoration:underline}
+.footer-text-controls button:focus-visible,.access-controls button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.footer-text-controls button:disabled,.access-controls button:disabled{opacity:.55;cursor:not-allowed;text-decoration:none}
+.text-scale-status{display:inline-block;margin:0 0 8px;color:var(--muted);font-size:10px;font-weight:700}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

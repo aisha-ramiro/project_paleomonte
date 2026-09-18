@@ -79,9 +79,12 @@ function Header({ language, onLanguageChange }) {
   );
 }
 
-function Footer({ language }) {
+function Footer({ language, textScale, onIncreaseText, onDecreaseText }) {
   const text = copy[language].footer;
   const nav = copy[language].nav;
+  const percentage = Math.round(textScale * 100);
+  const canIncrease = textScale < MAX_TEXT_SCALE;
+  const canDecrease = textScale > MIN_TEXT_SCALE;
   return (
     <footer className="footer">
       <div className="shell footer-grid">
@@ -96,12 +99,25 @@ function Footer({ language }) {
 
         <section>
           <h4>{text.accessibility}</h4>
-          <a href="#/acessibilidade">
-            {text.increase} <b>A+</b>
-          </a>
-          <a href="#/acessibilidade">
-            {text.decrease} <b>A−</b>
-          </a>
+          <div className="footer-text-controls" role="group" aria-label={text.accessibility}>
+            <button
+              type="button"
+              onClick={onIncreaseText}
+              disabled={!canIncrease}
+              aria-label={`${text.increase}: ${percentage}%`}
+            >
+              {text.increase} <b>A+</b>
+            </button>
+            <button
+              type="button"
+              onClick={onDecreaseText}
+              disabled={!canDecrease}
+              aria-label={`${text.decrease}: ${percentage}%`}
+            >
+              {text.decrease} <b>A−</b>
+            </button>
+            <span className="sr-only" aria-live="polite">{percentage}%</span>
+          </div>
           <a href="#/acessibilidade">{text.contrast}</a>
         </section>
 
@@ -613,20 +629,23 @@ function About({ language }) {
   );
 }
 
-function Accessibility({ language }) {
-  const [big, setBig] = useState(false);
+function Accessibility({ language, textScale, onIncreaseText, onDecreaseText }) {
   const text = copy[language].accessibility;
+  const percentage = Math.round(textScale * 100);
   return (
-    <main className={`shell page accessibility ${big ? "big-text" : ""}`}>
+    <main className="shell page accessibility">
       <p className="eyebrow">{text.eyebrow}</p>
       <h1>{text.title}</h1>
       <p className="intro">{text.intro}</p>
-      <div className="access-controls">
-        <button onClick={() => setBig(!big)}>
-          <Icon>A±</Icon>
-          {big ? text.normal : text.increase}
+      <div className="access-controls" role="group" aria-label={text.title}>
+        <button type="button" onClick={onIncreaseText} disabled={textScale >= MAX_TEXT_SCALE}>
+          <Icon>A+</Icon>{text.increase}
         </button>
-        <button onClick={() => document.body.classList.toggle("contrast")}>
+        <button type="button" onClick={onDecreaseText} disabled={textScale <= MIN_TEXT_SCALE}>
+          <Icon>A−</Icon>{text.decrease}
+        </button>
+        <span className="text-scale-status" aria-live="polite">{percentage}%</span>
+        <button type="button" onClick={() => document.body.classList.toggle("contrast")}>
           <Icon>◐</Icon>{text.contrast}
         </button>
       </div>
@@ -651,10 +670,29 @@ function Accessibility({ language }) {
   );
 }
 
+const TEXT_SCALE_STORAGE_KEY = "paleomonte-text-scale";
+const MIN_TEXT_SCALE = 0.9;
+const MAX_TEXT_SCALE = 1.2;
+const TEXT_SCALE_STEP = 0.1;
+
+function readTextScale() {
+  const savedScale = Number(window.localStorage.getItem(TEXT_SCALE_STORAGE_KEY));
+  return Number.isFinite(savedScale)
+    ? Math.min(MAX_TEXT_SCALE, Math.max(MIN_TEXT_SCALE, savedScale))
+    : 1;
+}
+
 function App() {
   const route = useRoute();
   const [language, setLanguage] = useState(() => window.localStorage.getItem('paleomonte-language') || 'pt');
+  const [textScale, setTextScale] = useState(readTextScale);
   useEffect(() => window.localStorage.setItem('paleomonte-language', language), [language]);
+  useEffect(() => {
+    window.localStorage.setItem(TEXT_SCALE_STORAGE_KEY, String(textScale));
+    document.documentElement.style.setProperty("--text-scale", String(textScale));
+  }, [textScale]);
+  const increaseText = () => setTextScale((current) => Math.min(MAX_TEXT_SCALE, Number((current + TEXT_SCALE_STEP).toFixed(1))));
+  const decreaseText = () => setTextScale((current) => Math.max(MIN_TEXT_SCALE, Number((current - TEXT_SCALE_STEP).toFixed(1))));
   const passwordSetup =
     window.location.pathname.replace(/\/+$/, "") === "/definir-senha";
   usePublicAccessTracking(passwordSetup ? "/admin" : route);
@@ -673,7 +711,7 @@ function App() {
       />
     );
   else if (route === "/sobre") content = <About language={language} />;
-  else if (route === "/acessibilidade") content = <Accessibility language={language} />;
+  else if (route === "/acessibilidade") content = <Accessibility language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} />;
   else if (route === "/admin")
     content = <AdminPanel onCatalogChanged={reload} />;
   else content = <Home specimens={specimens} loading={loading} language={language} />;
@@ -682,7 +720,7 @@ function App() {
     <>
       {!isAdmin && <Header language={language} onLanguageChange={setLanguage} />}
       {content}
-      {!isAdmin && <Footer language={language} />}
+      {!isAdmin && <Footer language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} />}
     </>
   );
 }

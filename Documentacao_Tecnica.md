@@ -413,3 +413,13 @@ Ao realizar uma nova melhoria, adicione uma subseção com:
 - Impacto em rotas, dados, acessibilidade ou execução local.
 - Decisões relevantes e pendências, quando houver.
 ```
+
+
+### 2026-09-18 — Controles persistentes de tamanho do texto
+
+- Os controles **A+** e **A−** do rodapé agora ajustam efetivamente a escala de leitura da interface pública.
+- A escala é aplicada globalmente e permanece ativa ao navegar entre páginas e ao retornar ao site, pois a preferência é salva no navegador.
+- Foram definidos limites seguros de **90% a 120%**, em passos de 10%, para evitar redução excessiva ou quebra de layout em ampliações muito grandes.
+- Os botões ficam desativados ao alcançar o limite correspondente e possuem foco visível para navegação por teclado.
+- A página de acessibilidade passou a utilizar os mesmos controles e informa a porcentagem atual.
+- Validação técnica: compilação de produção concluída com sucesso por meio de `npm run build`.
