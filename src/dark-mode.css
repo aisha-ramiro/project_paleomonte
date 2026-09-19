@@ -1,0 +1,32 @@
+/* Tema escuro da aplicação pública. Persistido no localStorage e aplicado ao elemento html. */
+:root.dark-mode{--cream:#171b19;--paper:#202522;--ink:#f1f3ef;--muted:#b9c0ba;--line:#3b443f;--brown:#9b4b31;--green:#4f9b7e;--green-2:#39745f;--gold:#e7bf57}
+html.dark-mode,html.dark-mode body{background:var(--cream);color:var(--ink)}
+html.dark-mode .site-header{background:rgba(32,37,34,.97);border-color:var(--line)}
+html.dark-mode .site-header nav a,html.dark-mode .menu-toggle{color:var(--ink)}
+html.dark-mode .language-switcher{background:var(--paper);border-color:var(--line)}
+html.dark-mode .language-switcher button:hover,html.dark-mode .language-switcher button.active{background:#35403a}
+html.dark-mode .features{background:linear-gradient(90deg,#202622,#282e2a)}
+html.dark-mode .fossil-card,html.dark-mode .search-box,html.dark-mode .admin-empty,html.dark-mode .data-table,html.dark-mode .specimen-form,html.dark-mode .compact-form,html.dark-mode .category-list,html.dark-mode .qr-list article,html.dark-mode .image-editing,html.dark-mode .image-draft-list article,html.dark-mode .login-card,html.dark-mode .access-dashboard,html.dark-mode .access-chart,html.dark-mode .access-summary article,html.dark-mode .foreign-translation-panel{background:var(--paper);border-color:var(--line);color:var(--ink)}
+html.dark-mode .search-box input,html.dark-mode .admin-form input,html.dark-mode .admin-form select,html.dark-mode .admin-form textarea,html.dark-mode .inline-form select,html.dark-mode .user-role-control select,html.dark-mode .date-filter input,html.dark-mode .date-filter select{background:#171b19;color:var(--ink);border-color:var(--line)}
+html.dark-mode .card-copy p,html.dark-mode .footer section a,html.dark-mode .helper-text,html.dark-mode .publication-note,html.dark-mode .admin-empty p,html.dark-mode .login-card>p:not(.eyebrow),html.dark-mode .access-summary span,html.dark-mode .access-summary small,html.dark-mode .access-summary>p,html.dark-mode .chart-labels{color:var(--muted)}
+html.dark-mode .footer{background:#101412}
+html.dark-mode .role-list{background:#29302b;color:var(--muted)}
+html.dark-mode .asset-fieldset{background:#202622;border-color:var(--line)}
+html.dark-mode .qr-fieldset{background:#25322c}
+html.dark-mode .admin-welcome{background:linear-gradient(110deg,#202622,#29302b);border-color:var(--line)}
+html.dark-mode .status{background:#303631;color:#d9ded9}
+html.dark-mode .status.published{background:#244a37;color:#bde4cb}
+html.dark-mode .status.in_review{background:#4b4225;color:#f0d98a}
+html.dark-mode .status.archived{background:#343634;color:#d0d2d0}
+html.dark-mode .access-dashboard-head,html.dark-mode .form-actions,html.dark-mode .foreign-form-grid{border-color:var(--line)}
+html.dark-mode .chart-frame line{stroke:#3b443f}
+html.dark-mode .chart-frame>p{background:#202522e8;color:var(--muted)}
+html.dark-mode .login-text-action{color:#9dd0ba}
+html.dark-mode .text-button,html.dark-mode .section-heading a,html.dark-mode .back-link{color:#8bc5ad}
+html.dark-mode .admin-form label,html.dark-mode .user-role-control{color:#dbe0dc}
+html.dark-mode .eyebrow{color:#78bda0}
+html.dark-mode .access-controls .dark-mode-control{background:var(--paper);border-color:var(--line)}
+html.dark-mode .dark-mode-label{color:var(--ink)}
+html.dark-mode .switch-slider{background:#59625d}
+html.dark-mode .switch input:checked + .switch-slider{background:var(--green)}
+html.dark-mode .text-scale-status{color:var(--muted)}
