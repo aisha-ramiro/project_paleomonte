@@ -26,6 +26,8 @@ html.dark-mode .text-button,html.dark-mode .section-heading a,html.dark-mode .ba
 html.dark-mode .admin-form label,html.dark-mode .user-role-control{color:#dbe0dc}
 html.dark-mode .eyebrow{color:#78bda0}
 html.dark-mode .access-controls .dark-mode-control{background:var(--paper);border-color:var(--line)}
+html.dark-mode .footer-dark-mode{border-color:#4a514b}
+html.dark-mode .footer-dark-mode-label{color:#e5ebe7}
 html.dark-mode .dark-mode-label{color:var(--ink)}
 html.dark-mode .switch-slider{background:#59625d}
 html.dark-mode .switch input:checked + .switch-slider{background:var(--green)}
