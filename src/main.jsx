@@ -7,7 +7,7 @@ import museumLogo from "./assets/museum-logo.png";
 import { AdminPanel } from "./components/AdminPanel";
 import { usePublicAccessTracking } from "./services/accessMetrics";
 import { usePublicCatalog } from "./services/publicCatalog";
-import { FaFacebookF, FaInstagram } from "react-icons/fa";
+import { FaFacebookF, FaInstagram, FaMoon } from "react-icons/fa";
 import { copy, languages, localizeSpecimen } from "./i18n";
 
 function Icon({ children }) {
@@ -80,7 +80,7 @@ function Header({ language, onLanguageChange }) {
   );
 }
 
-function Footer({ language, textScale, onIncreaseText, onDecreaseText }) {
+function Footer({ language, textScale, onIncreaseText, onDecreaseText, darkMode, onToggleDarkMode }) {
   const text = copy[language].footer;
   const nav = copy[language].nav;
   const percentage = Math.round(textScale * 100);
@@ -120,6 +120,20 @@ function Footer({ language, textScale, onIncreaseText, onDecreaseText }) {
             <span className="sr-only" aria-live="polite">{percentage}%</span>
           </div>
           <a href="#/acessibilidade">{text.contrast}</a>
+          <div className="footer-dark-mode">
+            <span className="footer-dark-mode-label">
+              <FaMoon aria-hidden="true" /> {copy[language].accessibility.darkMode}
+            </span>
+            <label className="switch switch-footer">
+              <input
+                type="checkbox"
+                checked={darkMode}
+                onChange={onToggleDarkMode}
+                aria-label={copy[language].accessibility.darkMode}
+              />
+              <span className="switch-slider" aria-hidden="true" />
+            </label>
+          </div>
         </section>
 
         <section>
@@ -647,7 +661,7 @@ function Accessibility({ language, textScale, onIncreaseText, onDecreaseText, da
         </button>
         <span className="text-scale-status" aria-live="polite">{percentage}%</span>
         <div className="dark-mode-control">
-          <span className="dark-mode-label"><Icon>◐</Icon>{text.darkMode}</span>
+          <span className="dark-mode-label"><FaMoon aria-hidden="true" />{text.darkMode}</span>
           <label className="switch">
             <input type="checkbox" checked={darkMode} onChange={onToggleDarkMode} aria-label={text.darkMode} />
             <span className="switch-slider" aria-hidden="true" />
@@ -736,7 +750,7 @@ function App() {
     <>
       {!isAdmin && <Header language={language} onLanguageChange={setLanguage} />}
       {content}
-      {!isAdmin && <Footer language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} />}
+      {!isAdmin && <Footer language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />}
     </>
   );
 }
