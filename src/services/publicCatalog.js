@@ -30,6 +30,7 @@ function mapSpecimen(row, urls) {
     id: row.id,
     slug: row.slug,
     name: row.scientific_name,
+    validatedAt: row.validated_at,
     commonName: row.common_name,
     category: primaryCategory(row),
     period: row.geological_period ?? '',
@@ -78,7 +79,7 @@ export function usePublicCatalog() {
       const { data, error } = await supabase
         .from('specimens')
         .select(`
-          id, scientific_name, common_name, slug, summary, description, translations,
+          id, scientific_name, common_name, slug, summary, description, translations, validated_at,
           geological_period, geological_era, discovery_location, discovery_year, discovered_by, specimen_type, diet, length_meters,
           specimen_categories(is_primary, categories(name, slug)),
           specimen_media(purpose, display_order, media(id, storage_bucket, storage_path, type, status, alt_text))
