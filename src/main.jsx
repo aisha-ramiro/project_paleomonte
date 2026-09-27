@@ -9,6 +9,7 @@ import { usePublicAccessTracking } from "./services/accessMetrics";
 import { usePublicCatalog } from "./services/publicCatalog";
 import { FaFacebookF, FaInstagram, FaMoon } from "react-icons/fa";
 import { copy, languages, localizeSpecimen } from "./i18n";
+import { updatePageMetadata } from "./semanticMetadata";
 
 function Icon({ children }) {
   return (
@@ -727,6 +728,19 @@ function App() {
     window.location.pathname.replace(/\/+$/, "") === "/definir-senha";
   usePublicAccessTracking(passwordSetup ? "/admin" : route);
   const { specimens, loading, error, reload } = usePublicCatalog();
+  useEffect(() => {
+    const currentPageRoute = passwordSetup ? '/definir-senha' : route;
+    const specimen = route.startsWith('/fosseis/')
+      ? specimens.find((item) => route.includes(item.slug))
+      : null;
+    updatePageMetadata({
+      route: currentPageRoute,
+      specimen,
+      loading,
+      language,
+      origin: window.location.origin,
+    });
+  }, [route, specimens, loading, language, passwordSetup]);
   let content;
   if (passwordSetup)
     content = <AdminPanel onCatalogChanged={reload} passwordSetup />;
