@@ -5,7 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d4234" />
     <meta name="description" content="PaleoMonte — catálogo digital do Museu de Paleontologia de Monte Alto" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PaleoMonte" />
+    <meta property="og:title" content="PaleoMonte | Museu de Paleontologia" />
+    <meta property="og:description" content="PaleoMonte — catálogo digital do Museu de Paleontologia de Monte Alto" />
     <title>PaleoMonte | Museu de Paleontologia</title>
+    <script type="application/ld+json" id="paleomonte-site-jsonld">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "@id": "https://project-paleomonte.vercel.app/",
+        "name": "PaleoMonte",
+        "url": "https://project-paleomonte.vercel.app/",
+        "description": "Catálogo digital do Museu de Paleontologia de Monte Alto",
+        "inLanguage": "pt-BR",
+        "about": {
+          "@type": "Museum",
+          "name": "Museu de Paleontologia Prof. Antonio Celso de Arruda Campos",
+          "url": "https://montealto.sp.gov.br/site/museudepaleontologia/",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Monte Alto",
+            "addressRegion": "SP",
+            "addressCountry": "BR"
+          }
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
