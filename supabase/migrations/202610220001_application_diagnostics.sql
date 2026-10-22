@@ -35,7 +35,7 @@ create table public.diagnostic_events (
 alter table public.diagnostic_settings enable row level security;
 alter table public.diagnostic_events enable row level security;
 -- Acesso somente pelas funções abaixo, que conferem o nível da sessão.
-revoke all on public.diagnostic_settings, public.diagnostic_events from anon, authenticated;
+revoke all on public.diagnostic_settings, public.diagnostic_events from public, anon, authenticated;
 
 create or replace function public.record_diagnostic_event(p_source text, p_code text, p_http_status integer default null)
 returns void language plpgsql security definer set search_path = '' as $$
@@ -124,10 +124,12 @@ begin
 end;
 $$;
 
-revoke all on function public.record_diagnostic_event(text, text, integer) from public;
-revoke all on function public.acknowledge_diagnostic_event(text, text, timestamptz) from public;
-revoke all on function public.save_diagnostic_settings(jsonb) from public;
-revoke all on function public.get_application_diagnostics() from public;
+-- O Supabase pode conceder EXECUTE explicitamente a anon por padrão.
+-- Revogar apenas PUBLIC não remove esse privilégio herdado da configuração.
+revoke all on function public.record_diagnostic_event(text, text, integer) from public, anon;
+revoke all on function public.acknowledge_diagnostic_event(text, text, timestamptz) from public, anon;
+revoke all on function public.save_diagnostic_settings(jsonb) from public, anon;
+revoke all on function public.get_application_diagnostics() from public, anon;
 grant execute on function public.record_diagnostic_event(text, text, integer) to authenticated;
 grant execute on function public.acknowledge_diagnostic_event(text, text, timestamptz) to authenticated;
 grant execute on function public.save_diagnostic_settings(jsonb) to authenticated;
