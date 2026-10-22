@@ -1,6 +1,6 @@
 # Documentação Técnica — PaleoMonte
 
-> Última atualização: 11 de setembro de 2026
+> Última atualização: 22 de outubro de 2026
 >
 > Status atual: aplicação navegável com Supabase conectado. O painel administra o acervo e o catálogo público exibe espécies com status publicado, sujeitas à validação institucional.
 
@@ -89,6 +89,14 @@ Exemplo de rota individual atualmente disponível:
 - Geração e armazenamento do arquivo de QR Code durante o cadastro da espécie.
 - Impressão de QR Code diretamente pela lista de espécies.
 - Coleta diária agregada de acessos do site e das espécies, sem registrar IP, dispositivo, identificador de visitante ou horário individual.
+
+### Central de ajuda administrativa
+
+A seção **Precisa de ajuda?**, no menu administrativo, está disponível para Administradores e Operadores. Reúne 16 tutoriais em seis assuntos: primeiros passos; espécies e categorias; imagens e QR Codes; tradução e acessibilidade; acessos e usuários; boas práticas e limites.
+
+A busca consulta títulos, descrições, passos e observações sem diferenciar maiúsculas ou acentos. Os filtros por assunto podem ser combinados com a busca. Cada tutorial abre individualmente, com suporte ao teclado e layouts para computador, celular e tema escuro. Ações de gestão de usuários são identificadas como exclusivas de administradores; operadores recebem uma orientação para solicitar apoio.
+
+O conteúdo fica em `src/data/adminHelp.js`; a interface, em `src/components/AdminHelp.jsx` e `src/components/admin-help.css`. Os guias documentam os fluxos atuais, incluindo salvamentos parciais, regeneração de traduções, endereços de QR Codes, exclusões permanentes e limites configurados no projeto. A central não consulta cotas de provedores nem altera as permissões existentes.
 
 ## 5. Conteúdo demonstrativo
 
@@ -423,3 +431,11 @@ Ao realizar uma nova melhoria, adicione uma subseção com:
 - Os botões ficam desativados ao alcançar o limite correspondente e possuem foco visível para navegação por teclado.
 - A página de acessibilidade passou a utilizar os mesmos controles e informa a porcentagem atual.
 - Validação técnica: compilação de produção concluída com sucesso por meio de `npm run build`.
+
+### 2026-10-22 — Central de ajuda administrativa
+
+- Adicionada a seção **Precisa de ajuda?** ao menu do painel para Administradores e Operadores.
+- Incluídos 16 tutoriais com passos e observações sobre acervo, categorias, imagens, QR Codes, tradução, acessibilidade, acessos, usuários, boas práticas e limites.
+- Adicionados busca sem distinção de acentos, filtros por assunto, estado sem resultados e identificação de ações exclusivas de administradores.
+- Usados React, CSS e ícones da dependência existente `lucide-react`; sem novas dependências declaradas, tabelas ou rotas públicas.
+- Verificados compilação de produção e fluxos da ajuda em navegador com dados simulados: dois níveis de acesso, busca, filtros, teclado, tema escuro e celular.

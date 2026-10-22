@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import Cropper from 'react-easy-crop';
+import AdminHelp from './AdminHelp';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { getAccessMetrics, localDateInput } from '../services/accessMetrics';
 import { translateSpecimen } from '../services/translation';
@@ -776,12 +777,13 @@ function AdminShell({ session, roles, onSignOut, onCatalogChanged }) {
   const [active, setActive] = useState('Painel');
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
-  const labels = ['Painel', 'Espécies', ...(canManage ? ['Categorias'] : []), ...(roles.includes('admin') ? ['Usuários'] : []), 'Configurações'];
+  const labels = ['Painel', 'Espécies', ...(canManage ? ['Categorias'] : []), ...(roles.includes('admin') ? ['Usuários'] : []), 'Precisa de ajuda?', 'Configurações'];
   const primaryRole = ['admin', 'operator'].find((role) => roles.includes(role));
   let content = <AdminDashboard roles={roles}/>;
   if (active === 'Espécies') content = <SpeciesManager roles={roles} onCatalogChanged={onCatalogChanged}/>;
   if (active === 'Categorias') content = <CategoriesManager/>;
   if (active === 'Usuários') content = <UsersManager session={session}/>;
+  if (active === 'Precisa de ajuda?') content = <AdminHelp roles={roles}/>;
   if (active === 'Configurações') content = <SectionMessage title="Configurações">As configurações institucionais, domínio público e e-mails administrativos serão centralizados aqui.</SectionMessage>;
   return <main className="admin"><aside className="admin-side"><AdminBrand/>{labels.map((label) => <button className={active === label ? 'active' : ''} onClick={() => setActive(label)} key={label}><span>{label === 'Painel' ? '⌂' : '▧'}</span>{label}</button>)}<button className="admin-exit" onClick={onSignOut}><span>↪</span>Sair</button></aside><section className="admin-main"><div className="admin-top"><div><p className="eyebrow">Área administrativa</p><h1>{active}</h1></div><div className="admin-user"><i>{session.user.email?.slice(0, 2).toUpperCase()}</i><span>{session.user.email}<small>{roleLabels[primaryRole] ?? 'Equipe'}</small></span></div></div>{content}{canPublish && <p className="publication-note">Publicações devem conter informações e mídias validadas pelo Museu de Paleontologia.</p>}</section></main>;
 }
