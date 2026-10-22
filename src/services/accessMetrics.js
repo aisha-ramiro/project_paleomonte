@@ -41,7 +41,7 @@ export function usePublicAccessTracking(route) {
     // A função no banco apenas incrementa contadores diários. Nenhuma
     // informação individual de visitante é enviada ou registrada. O envio
     // usa keepalive para concluir mesmo quando a pessoa sai rapidamente.
-    void recordPublicAccess(specimenSlug);
+    void recordPublicAccess(specimenSlug).catch(() => {});
   }, [route]);
 }
 

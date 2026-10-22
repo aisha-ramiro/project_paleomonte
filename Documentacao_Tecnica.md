@@ -92,11 +92,21 @@ Exemplo de rota individual atualmente disponível:
 
 ### Central de ajuda administrativa
 
-A seção **Precisa de ajuda?**, no menu administrativo, está disponível para Administradores e Operadores. Reúne 16 tutoriais em seis assuntos: primeiros passos; espécies e categorias; imagens e QR Codes; tradução e acessibilidade; acessos e usuários; boas práticas e limites.
+A seção **Precisa de ajuda?**, no menu administrativo, está disponível para Administradores e Operadores. Reúne 17 tutoriais em seis assuntos: primeiros passos; espécies e categorias; imagens e QR Codes; tradução e acessibilidade; acessos e usuários; boas práticas e limites.
 
 A busca consulta títulos, descrições, passos e observações sem diferenciar maiúsculas ou acentos. Os filtros por assunto podem ser combinados com a busca. Cada tutorial abre individualmente, com suporte ao teclado e layouts para computador, celular e tema escuro. Ações de gestão de usuários são identificadas como exclusivas de administradores; operadores recebem uma orientação para solicitar apoio.
 
-O conteúdo fica em `src/data/adminHelp.js`; a interface, em `src/components/AdminHelp.jsx` e `src/components/admin-help.css`. Os guias documentam os fluxos atuais, incluindo salvamentos parciais, regeneração de traduções, endereços de QR Codes, exclusões permanentes e limites configurados no projeto. A central não consulta cotas de provedores nem altera as permissões existentes.
+O conteúdo fica em `src/data/adminHelp.js`; a interface, em `src/components/AdminHelp.jsx` e `src/components/admin-help.css`. Os guias documentam os fluxos atuais, incluindo salvamentos parciais, regeneração de traduções, endereços de QR Codes, exclusões permanentes e uso do Diagnóstico. A central de ajuda não altera as permissões existentes.
+
+### Diagnóstico da aplicação
+
+Substitui a antiga seção Configurações. Apresenta nove quadros: banco de dados, armazenamento de arquivos, acessos mensais, cota do tradutor, requisições e transferência da hospedagem, catálogo, serviço de imagens e gestão de usuários. Mostra a origem e a data da leitura, barras de uso e orientações para agir. Os alertas de capacidade começam em 80%, e o estado crítico em 95%. Dados ausentes ficam pendentes, sem serem interpretados como consumo zero.
+
+Banco, arquivos e acessos são agregados pela função protegida `get_application_diagnostics`. A API de servidor `GET /api/diagnostics` consulta o uso do DeepL sem enviar textos para tradução nem expor a chave. Requisições e transferência da hospedagem são leituras manuais, com período e data, confirmadas por Administradores; ficam desatualizadas após 24 horas ou fora do período informado. A contagem de acessos do site não equivale às requisições da hospedagem. Os limites são referências informadas pela equipe, sem alterar planos ou bloquear operações.
+
+Falhas HTTP, de conexão, carregamento de recursos, promessas não tratadas e renderização geram códigos predefinidos, sem registrar mensagens livres, endereços, credenciais ou conteúdo do acervo. O navegador mantém até 40 tipos de aviso local; com sessão editorial válida, até cinco avisos pendentes por minuto podem ser compartilhados em `diagnostic_events`. O banco agrupa por serviço/código e limita atualizações a uma por minuto por combinação. Marcar como lido não significa corrigir uma falha, e uma nova ocorrência pode reabrir o aviso. A coleta não cria monitoramento externo nem cobre visitantes de outros navegadores sem sessão editorial.
+
+A atualização ocorre ao abrir o painel, a cada minuto em aba visível e ao recuperar a conexão. Há verificações de leitura sem criação de registros, envio de arquivos, convites ou traduções. A entrega de e-mails e todas as páginas públicas não são validadas por esses testes. A implementação exige a migration `202610220001_application_diagnostics.sql`, publicação da API na Vercel e atualização da função `admin-users`. Consulte **DIAGNOSTICO.md** para ativação e manutenção.
 
 ## 5. Conteúdo demonstrativo
 
@@ -439,3 +449,12 @@ Ao realizar uma nova melhoria, adicione uma subseção com:
 - Adicionados busca sem distinção de acentos, filtros por assunto, estado sem resultados e identificação de ações exclusivas de administradores.
 - Usados React, CSS e ícones da dependência existente `lucide-react`; sem novas dependências declaradas, tabelas ou rotas públicas.
 - Verificados compilação de produção e fluxos da ajuda em navegador com dados simulados: dois níveis de acesso, busca, filtros, teclado, tema escuro e celular.
+
+### 2026-10-22 — Diagnóstico de capacidade e falhas
+
+- Substituída a seção Configurações por Diagnóstico, com nove quadros, avisos no painel e orientações de ação.
+- Adicionadas medições agregadas protegidas de banco, arquivos e acessos, consulta de cota do DeepL no servidor e leituras manuais datadas de requisições e transferência da hospedagem.
+- Incluídos limites de referência editáveis somente por Administradores, alertas em 80%/95%, estados pendentes para dados ausentes e identificação de leituras desatualizadas.
+- Adicionados captura de falhas com códigos sem dados pessoais, agrupamento de ocorrências, confirmação de leitura de avisos e tela de recuperação para erros de renderização.
+- Incluída migration de diagnóstico e ação de saúde na função de usuários. A ativação em produção está descrita em `DIAGNOSTICO.md`; o banco real não foi alterado durante o desenvolvimento.
+- Validação: testes de lógica, API e privacidade, execução da migration em PostgreSQL temporário e fluxos de navegador com os dois níveis, falhas simuladas, falta de conexão, celular e tema escuro.

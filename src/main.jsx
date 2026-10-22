@@ -5,6 +5,8 @@ import "./dark-mode.css";
 import heroImage from "./assets/museum-hero-anuratitan-warm.png";
 import museumLogo from "./assets/museum-logo.png";
 import { AdminPanel } from "./components/AdminPanel";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import { installRuntimeDiagnostics } from "./services/diagnosticEvents";
 import { usePublicAccessTracking } from "./services/accessMetrics";
 import { usePublicCatalog } from "./services/publicCatalog";
 import { FaFacebookF, FaInstagram, FaMoon } from "react-icons/fa";
@@ -769,8 +771,10 @@ function App() {
   );
 }
 
+installRuntimeDiagnostics();
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <AppErrorBoundary><App /></AppErrorBoundary>
   </StrictMode>,
 );

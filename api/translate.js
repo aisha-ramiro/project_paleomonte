@@ -1,29 +1,14 @@
+import { authorizeEditorial, privateJson as json } from '../server/editorialAuth.js';
+
 const allowedFields = [
   'commonName', 'category', 'summary', 'description', 'period', 'era', 'geologicalAge', 'geologicalFormation',
   'location', 'discoveredBy', 'type', 'diet', 'additionalInfo',
 ];
 
-function json(response, status = 200) {
-  return new Response(JSON.stringify(response), { status, headers: { 'Content-Type': 'application/json' } });
-}
-
-async function isEditorialUser(authorization) {
-  const url = process.env.VITE_SUPABASE_URL;
-  const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key || !authorization) return false;
-  const headers = { apikey: key, Authorization: authorization };
-  const userResponse = await fetch(`${url}/auth/v1/user`, { headers });
-  if (!userResponse.ok) return false;
-  const user = await userResponse.json();
-  const rolesResponse = await fetch(`${url}/rest/v1/user_roles?user_id=eq.${user.id}&select=role`, { headers });
-  if (!rolesResponse.ok) return false;
-  const roles = await rolesResponse.json();
-  return roles.some(({ role }) => role === 'admin' || role === 'operator');
-}
-
 export async function POST(request) {
-  if (!(await isEditorialUser(request.headers.get('authorization')))) return json({ error: 'Sem permissão para gerar traduções.' }, 403);
-  if (!process.env.DEEPL_API_KEY) return json({ error: 'O tradutor ainda não foi configurado.' }, 503);
+  const auth = await authorizeEditorial(request);
+  if (auth.status !== 200) return json({ error: auth.error, code: auth.code }, auth.status);
+  if (!process.env.DEEPL_API_KEY?.trim()) return json({ error: 'O tradutor ainda não foi configurado.', code: 'not_configured' }, 503);
 
   const body = await request.json().catch(() => ({}));
   const record = body?.record ?? {};
@@ -34,12 +19,19 @@ export async function POST(request) {
 
   const key = process.env.DEEPL_API_KEY.trim();
   const endpoint = key.endsWith(':fx') ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `DeepL-Auth-Key ${key}` },
-    body: JSON.stringify({ text: fields.map((field) => record[field]), source_lang: 'PT', target_lang: targetLanguage, formality: 'default' }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !Array.isArray(payload.translations)) return json({ error: 'O tradutor não respondeu como esperado.' }, 502);
-  return json({ translation: Object.fromEntries(fields.map((field, index) => [field, payload.translations[index]?.text ?? record[field]])) });
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `DeepL-Auth-Key ${key}` },
+      body: JSON.stringify({ text: fields.map((field) => record[field]), source_lang: 'PT', target_lang: targetLanguage, formality: 'default' }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 456) return json({ error: 'A cota de tradução foi atingida. Consulte Diagnóstico antes de tentar novamente.', code: 'quota_exceeded' }, 402);
+    if (response.status === 429) return json({ error: 'O tradutor recebeu muitas solicitações. Aguarde alguns minutos antes de tentar novamente.', code: 'rate_limit' }, 429);
+    if (!response.ok || !Array.isArray(payload.translations)) return json({ error: 'O tradutor não respondeu como esperado. Consulte Diagnóstico.', code: 'server_error' }, 502);
+    return json({ translation: Object.fromEntries(fields.map((field, index) => [field, payload.translations[index]?.text ?? record[field]])) });
+  } catch {
+    return json({ error: 'Não foi possível alcançar o tradutor. Aguarde e tente novamente.', code: 'server_error' }, 503);
+  }
 }

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { configureDiagnosticTransport, diagnosticFetch } from '../services/diagnosticEvents';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabasePublishableKey =
@@ -14,8 +15,19 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKe
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabasePublishableKey, {
       auth: { persistSession: true, autoRefreshToken: true },
+      global: { fetch: diagnosticFetch },
     })
   : null;
+
+configureDiagnosticTransport(async (event) => {
+  if (!supabase) return false;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return false;
+  const { error } = await supabase.rpc('record_diagnostic_event', {
+    p_source: event.source, p_code: event.code, p_http_status: event.http_status,
+  }).abortSignal(AbortSignal.timeout(6000));
+  return !error;
+});
 
 /**
  * Registra uma abertura pública sem guardar dados que identifiquem a pessoa.
@@ -25,7 +37,7 @@ export const supabase = isSupabaseConfigured
 export function recordPublicAccess(specimenSlug = null) {
   if (!isSupabaseConfigured) return Promise.resolve();
 
-  return fetch(`${supabaseUrl}/rest/v1/rpc/record_public_access`, {
+  return diagnosticFetch(`${supabaseUrl}/rest/v1/rpc/record_public_access`, {
     method: 'POST',
     headers: {
       apikey: supabasePublishableKey,

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import Cropper from 'react-easy-crop';
 import AdminHelp from './AdminHelp';
+import AdminDiagnostics from './AdminDiagnostics';
+import { useDiagnostics } from '../services/diagnostics';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { getAccessMetrics, localDateInput } from '../services/accessMetrics';
 import { translateSpecimen } from '../services/translation';
@@ -774,18 +776,30 @@ function UsersManager({ session }) {
 }
 
 function AdminShell({ session, roles, onSignOut, onCatalogChanged }) {
-  const [active, setActive] = useState('Painel');
+  const [active, setActive] = useState(() => {
+    try {
+      if (window.sessionStorage.getItem('paleomonte-open-diagnostics') === 'true') {
+        return 'Diagnóstico';
+      }
+    } catch { /* O painel continua funcionando sem armazenamento de sessão. */ }
+    return 'Painel';
+  });
+  useEffect(() => {
+    try { window.sessionStorage.removeItem('paleomonte-open-diagnostics'); } catch { /* Sem persistência de sessão. */ }
+  }, []);
+  const diagnostics = useDiagnostics(roles);
+  const diagnosticAlertCount = diagnostics.alerts.length + diagnostics.unread.length + (diagnostics.online ? 0 : 1) + (diagnostics.error ? 1 : 0);
   const canManage = roles.some((role) => rolesThatCanManageContent.includes(role));
   const canPublish = roles.some((role) => rolesThatCanPublish.includes(role));
-  const labels = ['Painel', 'Espécies', ...(canManage ? ['Categorias'] : []), ...(roles.includes('admin') ? ['Usuários'] : []), 'Precisa de ajuda?', 'Configurações'];
+  const labels = ['Painel', 'Espécies', ...(canManage ? ['Categorias'] : []), ...(roles.includes('admin') ? ['Usuários'] : []), 'Precisa de ajuda?', 'Diagnóstico'];
   const primaryRole = ['admin', 'operator'].find((role) => roles.includes(role));
   let content = <AdminDashboard roles={roles}/>;
   if (active === 'Espécies') content = <SpeciesManager roles={roles} onCatalogChanged={onCatalogChanged}/>;
   if (active === 'Categorias') content = <CategoriesManager/>;
   if (active === 'Usuários') content = <UsersManager session={session}/>;
   if (active === 'Precisa de ajuda?') content = <AdminHelp roles={roles}/>;
-  if (active === 'Configurações') content = <SectionMessage title="Configurações">As configurações institucionais, domínio público e e-mails administrativos serão centralizados aqui.</SectionMessage>;
-  return <main className="admin"><aside className="admin-side"><AdminBrand/>{labels.map((label) => <button className={active === label ? 'active' : ''} onClick={() => setActive(label)} key={label}><span>{label === 'Painel' ? '⌂' : '▧'}</span>{label}</button>)}<button className="admin-exit" onClick={onSignOut}><span>↪</span>Sair</button></aside><section className="admin-main"><div className="admin-top"><div><p className="eyebrow">Área administrativa</p><h1>{active}</h1></div><div className="admin-user"><i>{session.user.email?.slice(0, 2).toUpperCase()}</i><span>{session.user.email}<small>{roleLabels[primaryRole] ?? 'Equipe'}</small></span></div></div>{content}{canPublish && <p className="publication-note">Publicações devem conter informações e mídias validadas pelo Museu de Paleontologia.</p>}</section></main>;
+  if (active === 'Diagnóstico') content = <AdminDiagnostics diagnostics={diagnostics}/>;
+  return <main className="admin"><aside className="admin-side"><AdminBrand/>{labels.map((label) => <button className={active === label ? 'active' : ''} onClick={() => setActive(label)} key={label} aria-current={active === label ? 'page' : undefined}><span aria-hidden="true">{label === 'Painel' ? '⌂' : label === 'Diagnóstico' ? '◉' : label === 'Precisa de ajuda?' ? '?' : '▧'}</span>{label}{label === 'Diagnóstico' && diagnosticAlertCount > 0 && <small aria-label={`${diagnosticAlertCount} alertas`}>({diagnosticAlertCount})</small>}</button>)}<button className="admin-exit" onClick={onSignOut}><span>↪</span>Sair</button></aside><section className="admin-main"><div className="admin-top"><div><p className="eyebrow">Área administrativa</p><h1>{active}</h1></div><div className="admin-user"><i>{session.user.email?.slice(0, 2).toUpperCase()}</i><span>{session.user.email}<small>{roleLabels[primaryRole] ?? 'Equipe'}</small></span></div></div>{active !== 'Diagnóstico' && diagnosticAlertCount > 0 && <div className="diagnostic-banner" role="status"><span>Há {diagnosticAlertCount} {diagnosticAlertCount === 1 ? 'aviso ou verificação que precisa' : 'avisos ou verificações que precisam'} de atenção.</span><button type="button" className="text-button" onClick={() => setActive('Diagnóstico')}>Ver diagnóstico</button></div>}{content}{canPublish && <p className="publication-note">Publicações devem conter informações e mídias validadas pelo Museu de Paleontologia.</p>}</section></main>;
 }
 
 export function AdminPanel({ onCatalogChanged, passwordSetup = false }) {

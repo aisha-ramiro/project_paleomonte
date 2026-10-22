@@ -51,6 +51,11 @@ Deno.serve(async (request) => {
       .maybeSingle();
     if (roleError || !adminRole) return json({ error: 'Apenas administradores podem gerir acessos.' }, 403);
 
+    if (request.method === 'POST') {
+      const probe = await request.clone().json().catch(() => ({}));
+      if (probe.action === 'health') return json({ ok: true });
+    }
+
     const adminClient = createClient(projectUrl, secretKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });

@@ -110,3 +110,11 @@ Ao abrir o convite, a pessoa é direcionada à tela **Defina sua senha**. Mesmo 
 Convites criados antes da publicação desta versão não apontam para a tela de senha. Após publicar a função atualizada, envie um novo link pelo acesso de recuperação ou gere um novo convite.
 
 As chaves secretas usadas pela função ficam no ambiente do Supabase. Não adicione nenhuma chave secreta ao `.env.local` do React.
+
+## Diagnóstico da aplicação
+
+Execute `migrations/202610220001_application_diagnostics.sql` após as migrations existentes e publique novamente `functions/admin-users/index.ts` para habilitar a ação de verificação `health`. Publique também o código atual do site na Vercel para disponibilizar `/api/diagnostics`, que consulta a cota do DeepL no servidor com a chave já configurada.
+
+O diagnóstico mostra tamanho do banco, arquivos e acessos agregados por funções que exigem sessão editorial. As tabelas de avisos e referências não têm acesso direto para visitantes ou clientes autenticados: o acesso ocorre pelas funções protegidas. Somente Administradores podem salvar limites e leituras da hospedagem. A migration não presume o plano contratado; os limites começam vazios.
+
+Requisições e transferência da hospedagem são leituras manuais, com data e período, e não são calculadas pelos acessos do site. Avisos registram apenas códigos predefinidos, serviço, status, datas e contagens agrupadas. Veja `../DIAGNOSTICO.md` para instruções completas, fontes e limites da coleta.
