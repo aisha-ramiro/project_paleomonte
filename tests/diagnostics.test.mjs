@@ -28,18 +28,20 @@ test('capacity warnings have precise boundaries and missing readings never mean 
   assert.equal(classifyFailure(503, 'not_configured'), 'not_configured');
 });
 
-test('hosting reads expire, and page views cannot substitute hosting requests', () => {
-  const snapshot = { checked_at: '2026-10-22T12:00:00Z', monthly_accesses: 900, settings: { access_monthly_limit: 1000, hosting_request_used: 200, hosting_request_limit: 1000, hosting_measured_at: '2026-10-20T12:00:00Z', hosting_period_start: '2026-10-01', hosting_period_end: '2026-10-31' } };
-  const cards = buildDiagnosticCards(snapshot, null, {}, new Date('2026-10-22T12:00:00Z'));
-  assert.equal(cards.find((card) => card.id === 'access').state, 'warning');
-  assert.equal(cards.find((card) => card.id === 'hosting').state, 'unknown');
-  assert.equal(cards.find((card) => card.id === 'hosting').used, 200);
+test('only measured resources are shown and database settings cannot override code limits', () => {
+  const snapshot = { checked_at: '2026-10-22T12:00:00Z', database_bytes: 28100000, application_database_bytes: 12800000, internal_database_bytes: 15300000, storage_bytes: 1000000, monthly_accesses: 900, settings: { database_limit_bytes: 1, storage_limit_bytes: 1, access_monthly_limit: 1, hosting_request_used: 200, hosting_request_limit: 1000 } };
+  const cards = buildDiagnosticCards(snapshot, null);
+  assert.equal(cards.length, 7);
+  assert.equal(cards.find((card) => card.id === 'database').limit, 500000000);
+  assert.equal(cards.find((card) => card.id === 'database').used, 28100000);
+  assert.equal(cards.find((card) => card.id === 'database').state, 'ok');
+  assert.match(cards.find((card) => card.id === 'database').detail, /Aplicação: 12,8 MB. Bases internas: 15,3 MB/);
+  assert.equal(cards.find((card) => card.id === 'storage').limit, 1000000000);
+  assert.equal(cards.find((card) => card.id === 'access').state, 'neutral');
+  assert.equal(cards.find((card) => card.id === 'hosting'), undefined);
+  assert.equal(cards.find((card) => card.id === 'transfer'), undefined);
   assert.equal(cards.find((card) => card.id === 'translation').state, 'unknown');
-  snapshot.settings.hosting_measured_at = '2026-11-01T00:00:00Z';
-  const timezoneCards = buildDiagnosticCards(snapshot, null, {}, new Date('2026-11-01T00:30:00Z'));
-  assert.equal(timezoneCards.find((card) => card.id === 'hosting').state, 'ok', 'Still October in São Paulo');
-  const nextMonth = buildDiagnosticCards(snapshot, null, {}, new Date('2026-11-01T10:30:00Z'));
-  assert.equal(nextMonth.find((card) => card.id === 'hosting').state, 'unknown');
+  assert.equal(buildDiagnosticCards(null, null).find((card) => card.id === 'access').state, 'unknown');
 });
 
 test('a newer local occurrence stays unread even when an older shared occurrence was read', () => {

@@ -100,13 +100,13 @@ O conteúdo fica em `src/data/adminHelp.js`; a interface, em `src/components/Adm
 
 ### Diagnóstico da aplicação
 
-Substitui a antiga seção Configurações. Apresenta nove quadros: banco de dados, armazenamento de arquivos, acessos mensais, cota do tradutor, requisições e transferência da hospedagem, catálogo, serviço de imagens e gestão de usuários. Mostra a origem e a data da leitura, barras de uso e orientações para agir. Os alertas de capacidade começam em 80%, e o estado crítico em 95%. Dados ausentes ficam pendentes, sem serem interpretados como consumo zero.
+Substitui a antiga seção Configurações. Apresenta sete quadros: banco de dados, armazenamento de arquivos, acessos mensais, cota do tradutor, catálogo, serviço de imagens e gestão de usuários. Mostra a origem e a data da leitura, barras de uso e orientações para agir. Os alertas de capacidade começam em 80%, e o estado crítico em 95%. Dados ausentes ficam pendentes, sem serem interpretados como consumo zero.
 
-Banco, arquivos e acessos são agregados pela função protegida `get_application_diagnostics`. A API de servidor `GET /api/diagnostics` consulta o uso do DeepL sem enviar textos para tradução nem expor a chave. Requisições e transferência da hospedagem são leituras manuais, com período e data, confirmadas por Administradores; ficam desatualizadas após 24 horas ou fora do período informado. A contagem de acessos do site não equivale às requisições da hospedagem. Os limites são referências informadas pela equipe, sem alterar planos ou bloquear operações.
+Banco, arquivos e acessos são agregados pela função protegida `get_application_diagnostics`. O banco soma todas as bases PostgreSQL do projeto, conforme a consulta recomendada pelo Supabase, e informa separadamente a aplicação e as bases internas. A API `GET /api/diagnostics` consulta a cota do DeepL no servidor. As referências de capacidade ficam exclusivamente em `src/config/diagnostics.js`; a edição pelo painel foi removida e a antiga função de escrita foi desativada. A contagem de acessos é informativa e não equivale às requisições da hospedagem. Os quadros de requisições e transferência não são exibidos.
 
 Falhas HTTP, de conexão, carregamento de recursos, promessas não tratadas e renderização geram códigos predefinidos, sem registrar mensagens livres, endereços, credenciais ou conteúdo do acervo. O navegador mantém até 40 tipos de aviso local; com sessão editorial válida, até cinco avisos pendentes por minuto podem ser compartilhados em `diagnostic_events`. O banco agrupa por serviço/código e limita atualizações a uma por minuto por combinação. Marcar como lido não significa corrigir uma falha, e uma nova ocorrência pode reabrir o aviso. A coleta não cria monitoramento externo nem cobre visitantes de outros navegadores sem sessão editorial.
 
-A atualização ocorre ao abrir o painel, a cada minuto em aba visível e ao recuperar a conexão. Há verificações de leitura sem criação de registros, envio de arquivos, convites ou traduções. A entrega de e-mails e todas as páginas públicas não são validadas por esses testes. A implementação exige a migration `202610220001_application_diagnostics.sql`, publicação da API na Vercel e atualização da função `admin-users`. Consulte **DIAGNOSTICO.md** para ativação e manutenção.
+A atualização ocorre ao abrir o painel, a cada minuto em aba visível e ao recuperar a conexão. Há verificações de leitura sem criação de registros, envio de arquivos, convites ou traduções. A entrega de e-mails e todas as páginas públicas não são validadas por esses testes. A implementação exige as migrations `202610220001_application_diagnostics.sql` e `202610220002_readonly_diagnostics.sql`, publicação da API na Vercel e atualização da função `admin-users`. Consulte **DIAGNOSTICO.md** para ativação e manutenção.
 
 ## 5. Conteúdo demonstrativo
 
@@ -458,3 +458,10 @@ Ao realizar uma nova melhoria, adicione uma subseção com:
 - Adicionados captura de falhas com códigos sem dados pessoais, agrupamento de ocorrências, confirmação de leitura de avisos e tela de recuperação para erros de renderização.
 - Incluída migration de diagnóstico e ação de saúde na função de usuários. A ativação em produção está descrita em `DIAGNOSTICO.md`; o banco real não foi alterado durante o desenvolvimento.
 - Validação: testes de lógica, API e privacidade, execução da migration em PostgreSQL temporário e fluxos de navegador com os dois níveis, falhas simuladas, falta de conexão, celular e tema escuro.
+
+### 2026-10-22 — Simplificação do diagnóstico e conferência do banco
+
+- Removidos os quadros de requisições e transferência da hospedagem e o formulário de limites, inclusive para Administradores.
+- Referências mantidas exclusivamente em `src/config/diagnostics.js`; a função antiga de escrita foi desativada pela migration de atualização.
+- Corrigida a medição do banco para somar as bases PostgreSQL do projeto, mostrando aplicação e bases internas separadamente. A conferência em produção encontrou aproximadamente 12,8 MB na aplicação e 15,3 MB nas bases internas, totalizando 28,1 MB, compatível com os 28 MB do painel do Supabase.
+- Acessos mensais sem teto interno são exibidos como informação, sem alerta de configuração pendente. Atualizados os testes, os tutoriais e o guia de ativação.

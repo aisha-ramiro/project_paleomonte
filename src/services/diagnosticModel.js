@@ -1,3 +1,5 @@
+import { diagnosticLimits } from '../config/diagnostics.js';
+
 export const diagnosticSources = {
   database: 'Banco de dados', storage: 'Arquivos e imagens', translation: 'Tradução',
   users: 'Gestão de usuários', access: 'Contagem de acessos', catalog: 'Catálogo público',
@@ -54,27 +56,16 @@ export function mergeDiagnosticEvents(remote = [], local = []) {
   return [...merged.values()].sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen));
 }
 
-export function buildDiagnosticCards(snapshot, provider, checks = {}, now = new Date()) {
-  const settings = snapshot?.settings ?? {};
+export function buildDiagnosticCards(snapshot, provider, checks = {}) {
   const resources = [
-    { id: 'database', title: 'Banco de dados', used: snapshot?.database_bytes, limit: settings.database_limit_bytes, unit: 'bytes', source: 'Medição do projeto', detail: 'Dados e índices deste banco. Não inclui todo o disco nem a soma de outros projetos.', action: 'Revise os dados com a equipe e confirme a capacidade do plano antes de novos cadastros.' },
-    { id: 'storage', title: 'Armazenamento de arquivos', used: snapshot?.storage_bytes, limit: settings.storage_limit_bytes, unit: 'bytes', source: 'Metadados dos arquivos do projeto', detail: snapshot ? `${formatDiagnosticNumber(snapshot.storage_files)} arquivos em todos os espaços de armazenamento deste projeto. ${snapshot.unknown_file_sizes ? 'Há arquivos sem tamanho informado; o total pode estar incompleto.' : ''}` : 'Inclui fotos e QR Codes, inclusive arquivos que já não aparecem no catálogo.', action: 'Evite fotos duplicadas. Peça revisão dos arquivos sem uso e da capacidade do plano.' },
-    { id: 'access', title: 'Acessos ao site neste mês', used: snapshot?.monthly_accesses, limit: settings.access_monthly_limit, unit: 'count', source: 'Contador do PaleoMonte · mês de São Paulo', detail: 'Limite de acompanhamento definido pela equipe. Uma pessoa pode gerar vários acessos. Este número não é a cota de requisições da hospedagem.', action: 'Confira a evolução no Painel e verifique também o consumo na hospedagem.' },
-  ].map((card) => ({ ...card, state: capacityState(card.used, card.limit), checkedAt: snapshot?.checked_at }));
+    { id: 'database', title: 'Banco de dados', used: snapshot?.database_bytes, limit: diagnosticLimits.databaseBytes, unit: 'bytes', source: 'Supabase · soma das bases do projeto', detail: snapshot?.application_database_bytes != null ? `Aplicação: ${formatDiagnosticNumber(snapshot.application_database_bytes, 'bytes')}. Bases internas: ${formatDiagnosticNumber(snapshot.internal_database_bytes, 'bytes')}. O total soma as bases PostgreSQL do projeto, conforme a consulta recomendada pelo Supabase. A atualização do provedor pode ter atraso.` : 'Total das bases PostgreSQL deste projeto, incluindo bases internas. Não equivale ao disco total nem à soma de outros projetos.', action: 'Revise os dados com a equipe e confirme a capacidade do plano antes de novos cadastros.' },
+    { id: 'storage', title: 'Armazenamento de arquivos', used: snapshot?.storage_bytes, limit: diagnosticLimits.storageBytes, unit: 'bytes', source: 'Metadados dos arquivos do projeto', detail: snapshot ? `${formatDiagnosticNumber(snapshot.storage_files)} arquivos em todos os espaços de armazenamento deste projeto. ${snapshot.unknown_file_sizes ? 'Há arquivos sem tamanho informado; o total pode estar incompleto.' : ''}` : 'Inclui fotos e QR Codes, inclusive arquivos que já não aparecem no catálogo.', action: 'Evite fotos duplicadas. Peça revisão dos arquivos sem uso e da capacidade do plano.' },
+    { id: 'access', title: 'Acessos ao site neste mês', used: snapshot?.monthly_accesses, limit: diagnosticLimits.monthlyAccesses, unit: 'count', source: 'Contador do PaleoMonte · mês de São Paulo', limitDescription: diagnosticLimits.monthlyAccesses == null ? 'Contagem informativa, sem cota contratual' : undefined, detail: 'Acessos a páginas no mês. Uma pessoa pode gerar vários acessos; a contagem não representa requisições cobradas pela hospedagem.', action: 'Confira a evolução no Painel e verifique também o consumo na hospedagem.' },
+  ].map((card) => ({ ...card, state: card.id === 'access' && card.limit == null && Number.isFinite(card.used) && card.used >= 0 ? 'neutral' : capacityState(card.used, card.limit), checkedAt: snapshot?.checked_at }));
   if (snapshot?.unknown_file_sizes && resources[1].state !== 'critical') resources[1].state = 'warning';
   const translation = provider?.translation;
   const quota = translation?.quota;
   resources.push({ id: 'translation', title: 'Tradução automática', used: quota?.used, limit: quota?.limit, unit: 'count', suffix: 'caracteres', state: translation?.state === 'ok' ? capacityState(quota?.used, quota?.limit) : (translation?.state ?? 'unknown'), source: quota?.scope === 'key' ? 'DeepL · cota da chave de tradução' : 'DeepL · cota da conta', checkedAt: provider?.checked_at, detail: translation?.message ?? 'Consumo no período de cobrança do tradutor. A leitura pode levar alguns minutos para refletir as últimas traduções.', action: 'Evite traduções repetidas. Revise a cota do DeepL ou mantenha as versões manuais enquanto o serviço estiver indisponível.' });
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-  const manualCurrent = settings.hosting_period_start && settings.hosting_period_end && settings.hosting_period_start <= today && settings.hosting_period_end >= today;
-  const manualStale = settings.hosting_measured_at && (now - new Date(settings.hosting_measured_at) > 86400000 || !manualCurrent);
-  for (const metric of [
-    { id: 'hosting', title: 'Requisições da hospedagem', used: settings.hosting_request_used, limit: settings.hosting_request_limit, unit: 'count' },
-    { id: 'transfer', title: 'Transferência da hospedagem', used: settings.hosting_transfer_used_bytes, limit: settings.hosting_transfer_limit_bytes, unit: 'bytes' },
-  ]) {
-    const state = capacityState(metric.used, metric.limit);
-    resources.push({ ...metric, state: manualStale ? (state === 'critical' && manualCurrent ? 'critical' : 'unknown') : state, source: 'Leitura informada pela administração', checkedAt: settings.hosting_measured_at, stale: Boolean(manualStale), detail: !settings.hosting_measured_at ? 'Ainda sem leitura do provedor. Um administrador pode informar consumo, limite e período abaixo.' : manualStale ? 'Leitura desatualizada ou de outro período. Atualize os dados antes de interpretar a margem disponível.' : `Período: ${settings.hosting_period_start} a ${settings.hosting_period_end}. Atualize a leitura no provedor regularmente; não há conexão automática com a Vercel.`, action: 'Abra Usage na Vercel e atualize a leitura e os limites de referência deste painel.', href: 'https://vercel.com/dashboard' });
-  }
   resources.push(
     { id: 'catalog', title: 'Consulta ao catálogo', state: checks.catalog?.state ?? 'unknown', checkedAt: checks.catalog?.checkedAt, detail: checks.catalog?.message ?? 'Verificando a leitura dos registros publicados.', action: 'Confira a conexão e as permissões de leitura. Se persistir, informe a equipe responsável.', source: 'Teste de leitura · sem alterar dados' },
     { id: 'media', title: 'Serviço de imagens', state: checks.storage?.state ?? 'unknown', checkedAt: checks.storage?.checkedAt, detail: checks.storage?.message ?? 'Verificando o acesso ao armazenamento da equipe.', action: 'Confira a conexão, as permissões e o espaço disponível. O teste não envia arquivos.', source: 'Teste de listagem · sem enviar arquivos' },
