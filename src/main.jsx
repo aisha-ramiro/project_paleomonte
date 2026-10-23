@@ -8,6 +8,7 @@ import { AdminPanel } from "./components/AdminPanel";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { installRuntimeDiagnostics } from "./services/diagnosticEvents";
 import { usePublicAccessTracking } from "./services/accessMetrics";
+import { featuredSpecimens } from "./services/publicCatalogModel";
 import { usePublicCatalog } from "./services/publicCatalog";
 import { FaFacebookF, FaInstagram, FaMoon } from "react-icons/fa";
 import { copy, languages, localizeSpecimen } from "./i18n";
@@ -197,8 +198,12 @@ function SearchBox({ value, onChange, placeholder, compact = false }) {
   );
 }
 
+function MissingSpecimenImage({ language }) {
+  return <div className="missing-specimen-image">{{ pt: 'Imagem da espécie ainda indisponível', en: 'Specimen image not yet available', es: 'Imagen de la especie aún no disponible' }[language]}</div>;
+}
+
 function FossilCard({ item, small = false, language = 'pt' }) {
-  const image = item.image || heroImage;
+  const image = item.image;
   const category = item.category || copy[language].specimen.categoryFallback;
   return (
     <a
@@ -206,10 +211,7 @@ function FossilCard({ item, small = false, language = 'pt' }) {
       href={`#/fosseis/${item.slug}`}
     >
       <div className="fossil-photo">
-        <img
-          src={image}
-          alt={item.imageAlt || `${copy[language].specimen.imageAlt} ${item.name}`}
-        />
+        {image ? <img src={image} alt={item.imageAlt || `${copy[language].specimen.imageAlt} ${item.name}`} /> : <MissingSpecimenImage language={language}/>}
       </div>
       <div className="card-copy">
         <span className={`pill ${category.toLowerCase().replaceAll(" ", "-")}`}>
@@ -237,7 +239,7 @@ function Home({ specimens, loading, language }) {
   const [query, setQuery] = useState("");
   const text = copy[language].home;
   const catalogText = copy[language].catalog;
-  const localizedSpecimens = specimens.map((item) => localizeSpecimen(item, language));
+  const localizedSpecimens = featuredSpecimens(specimens).map((item) => localizeSpecimen(item, language));
   const goSearch = (e) => {
     e.preventDefault();
     navigate(`/catalogo?q=${encodeURIComponent(query)}`);
@@ -277,7 +279,7 @@ function Home({ specimens, loading, language }) {
           <div className="empty">{catalogText.loading}</div>
         ) : localizedSpecimens.length ? (
           <div className="cards-grid featured">
-            {localizedSpecimens.slice(0, 4).map((item) => (
+            {localizedSpecimens.map((item) => (
               <FossilCard key={item.id} item={item} language={language} />
             ))}
           </div>
@@ -528,7 +530,7 @@ function SpecimenPage({ specimen, loading, siteLanguage }) {
     imageMedia.find((media) => media.purpose === "cover") ??
     imageMedia[0] ??
     null;
-  const image = selectedImage?.url || localizedSpecimen.image || heroImage;
+  const image = selectedImage?.url || localizedSpecimen.image;
   const narration = specimenNarration(localizedSpecimen, language);
 
   return (
@@ -558,14 +560,7 @@ function SpecimenPage({ specimen, loading, siteLanguage }) {
         <LanguageSwitcher language={language} onChange={setLanguage} className="specimen-language" />
       </div>
       <div className="detail-photo">
-        <img
-          src={image}
-          alt={
-            selectedImage?.alt_text ||
-            localizedSpecimen.imageAlt ||
-            `${text.imageAlt} ${specimen.name}`
-          }
-        />
+        {image ? <img src={image} alt={selectedImage?.alt_text || localizedSpecimen.imageAlt || `${text.imageAlt} ${specimen.name}`} /> : <MissingSpecimenImage language={language}/>}
       </div>
       {imageMedia.length > 1 && (
         <div className="thumbs">

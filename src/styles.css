@@ -73,3 +73,10 @@
 
 .text-scale-status{display:inline-block;margin:0 0 8px;color:var(--muted);font-size:10px;font-weight:700}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Publicação e edição do catálogo */
+.specimen-editor-fields{border:0;padding:0;margin:0;min-width:0;display:grid;gap:15px}
+.publication-controls{display:flex;align-items:center;flex-wrap:wrap;gap:16px;padding:18px;border:1px solid var(--line);border-radius:7px;background:var(--cream)}
+.publication-controls>label{min-width:170px}.publication-controls>div{flex:1;min-width:180px}.publication-controls strong{font-size:12px}.publication-controls p{font-size:11px;line-height:1.6;color:var(--muted);margin:5px 0 0}
+.status-action{display:block;margin-top:8px;padding:8px 10px;border:1px solid var(--green);border-radius:5px;background:var(--green);color:white;font:inherit;font-size:11px;font-weight:700;cursor:pointer}.status-action:disabled{opacity:.5;cursor:wait}
+.missing-specimen-image{display:grid;place-items:center;text-align:center;min-height:200px;height:100%;padding:30px;background:var(--paper);color:var(--muted);font-size:14px}.detail-photo:has(.missing-specimen-image){display:grid;min-height:300px}

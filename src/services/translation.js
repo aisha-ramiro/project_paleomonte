@@ -7,6 +7,7 @@ export async function translateSpecimen(record, targetLanguage = 'EN-US') {
 
   const response = await diagnosticFetch('/api/translate', {
     method: 'POST',
+    signal: AbortSignal.timeout(20000),
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
     body: JSON.stringify({ record, targetLanguage }),
   });

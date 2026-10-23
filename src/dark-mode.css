@@ -32,3 +32,6 @@ html.dark-mode .dark-mode-label{color:var(--ink)}
 html.dark-mode .switch-slider{background:#59625d}
 html.dark-mode .switch input:checked + .switch-slider{background:var(--green)}
 html.dark-mode .text-scale-status{color:var(--muted)}
+
+html.dark-mode .publication-controls{background:var(--paper)}
+html.dark-mode .status-action{background:#295640;color:#f7f3e9;border-color:#8bc5ad}

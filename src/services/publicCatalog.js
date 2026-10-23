@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { mapSpecimen } from './publicCatalogModel';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-
-function primaryCategory(row) {
-  const relation = row.specimen_categories?.find((item) => item.is_primary) ?? row.specimen_categories?.[0];
-  return relation?.categories?.name ?? 'Acervo';
-}
 
 async function signedMediaUrls(rows) {
   const approvedMedia = rows.flatMap((row) => row.specimen_media ?? [])
@@ -17,50 +13,6 @@ async function signedMediaUrls(rows) {
   }));
 
   return new Map(entries);
-}
-
-function mapSpecimen(row, urls) {
-  const media = (row.specimen_media ?? [])
-    .map((relation) => ({ ...relation, ...relation.media, url: urls.get(relation.media?.id) ?? null }))
-    .filter((item) => item.status === 'approved')
-    .sort((first, second) => first.display_order - second.display_order);
-  const cover = media.find((item) => item.purpose === 'cover') ?? media.find((item) => item.type === 'image');
-
-  return {
-    id: row.id,
-    slug: row.slug,
-    name: row.scientific_name,
-    validatedAt: row.validated_at,
-    commonName: row.common_name,
-    category: primaryCategory(row),
-    period: row.geological_period ?? '',
-    era: row.geological_era,
-    discoveryYear: row.discovery_year,
-    discoveredBy: row.discovered_by,
-    type: row.specimen_type ?? '',
-    diet: row.diet ?? '',
-    lengthMeters: row.length_meters,
-    length: row.length_meters ? `${row.length_meters} metros` : '',
-    location: row.discovery_location ?? '',
-    description: row.description ?? row.summary ?? '',
-    summary: row.summary,
-    translations: Object.fromEntries(['en', 'es'].map((language) => [language, row.translations?.[language] ? {
-      commonName: row.translations[language].commonName,
-      category: row.translations[language].category,
-      summary: row.translations[language].summary,
-      description: row.translations[language].description,
-      period: row.translations[language].period,
-      era: row.translations[language].era,
-      location: row.translations[language].location,
-      discoveredBy: row.translations[language].discoveredBy,
-      type: row.translations[language].type,
-      diet: row.translations[language].diet,
-      additionalInfo: row.translations[language].additionalInfo,
-    } : {}])),
-    image: cover?.url ?? null,
-    imageAlt: cover?.alt_text || `Imagem do espécime ${row.scientific_name}`,
-    media,
-  };
 }
 
 export function usePublicCatalog() {
@@ -79,7 +31,7 @@ export function usePublicCatalog() {
       const { data, error } = await supabase
         .from('specimens')
         .select(`
-          id, scientific_name, common_name, slug, summary, description, translations, validated_at,
+          id, scientific_name, common_name, slug, summary, description, translations, validated_at, is_featured,
           geological_period, geological_era, discovery_location, discovery_year, discovered_by, specimen_type, diet, length_meters,
           specimen_categories(is_primary, categories(name, slug)),
           specimen_media(purpose, display_order, media(id, storage_bucket, storage_path, type, status, alt_text))

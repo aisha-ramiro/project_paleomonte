@@ -7,6 +7,7 @@ import { useDiagnostics } from '../services/diagnostics';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { getAccessMetrics, localDateInput } from '../services/accessMetrics';
 import { translateSpecimen } from '../services/translation';
+import { emptySpecimen, normalizeSpecimen, specimenPayload, specimenStatuses, slugify, changeSpecimenStatus, approvePendingSpecimenImages } from '../services/specimenEditing';
 
 const rolesThatCanAccessAdmin = ['admin', 'operator'];
 const rolesThatCanManageContent = ['admin', 'operator'];
@@ -15,22 +16,6 @@ const roleLabels = {
   admin: 'Administrador',
   operator: 'Operador',
 };
-
-const emptySpecimen = {
-  museum_code: '', scientific_name: '', common_name: '', slug: '', summary: '', description: '',
-  geological_period: '', geological_era: '', geological_age: '', geological_formation: '',
-  discovery_location: '', discovery_year: '', discovered_by: '', latitude: '', longitude: '',
-  specimen_type: '', diet: '', length_meters: '', additional_info: '', is_featured: false,
-  status: 'draft',
-};
-
-const slugify = (value) => value
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .toLowerCase()
-  .trim()
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/(^-|-$)/g, '');
 
 const catalogImageAspect = 4 / 3;
 
@@ -479,17 +464,12 @@ function PrintQrCodeButton({ specimen, onError }) {
 }
 
 function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
-  const [form, setForm] = useState(specimen ? {
-    ...emptySpecimen,
-    ...specimen,
-    length_meters: specimen.length_meters ?? '',
-    discovery_year: specimen.discovery_year ?? '',
-    latitude: specimen.latitude ?? '',
-    longitude: specimen.longitude ?? '',
-  } : emptySpecimen);
+  const [form, setForm] = useState(() => normalizeSpecimen(specimen ?? emptySpecimen));
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState(specimen?.specimen_categories?.find((item) => item.is_primary)?.category_id ?? specimen?.specimen_categories?.[0]?.category_id ?? '');
   const [imageDrafts, setImageDrafts] = useState([]);
+  const [imagesLoading, setImagesLoading] = useState(Boolean(specimen));
+  const [imageLoadError, setImageLoadError] = useState('');
   const [removedExistingImages, setRemovedExistingImages] = useState([]);
   const [activeImageId, setActiveImageId] = useState(null);
   const [generateQr, setGenerateQr] = useState(!specimen);
@@ -542,13 +522,15 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
     let active = true;
     const loadExistingImages = async () => {
       const relations = (specimen?.specimen_media ?? []).filter((relation) => relation.media?.type === 'image' && relation.media.storage_path);
-      if (!relations.length) return;
+      if (!relations.length) { if (active) setImagesLoading(false); return; }
       const images = await Promise.all(relations.map(async (relation) => {
-        const { data } = await supabase.storage.from(relation.media.storage_bucket).createSignedUrl(relation.media.storage_path, 3600);
+        const { data, error: urlError } = await supabase.storage.from(relation.media.storage_bucket).createSignedUrl(relation.media.storage_path, 3600);
+        if (urlError || !data?.signedUrl) throw new Error('Não foi possível carregar todas as fotos. Reabra o cadastro antes de salvar.');
         return {
           id: `existing-${relation.media.id}`,
           existing: true,
           mediaId: relation.media.id,
+          status: relation.media.status,
           storageBucket: relation.media.storage_bucket,
           storagePath: relation.media.storage_path,
           previewUrl: data?.signedUrl ?? '',
@@ -563,94 +545,126 @@ function SpecimenForm({ specimen, roles, onSaved, onCancel }) {
       setImageDrafts(validImages.sort((first, second) => first.displayOrder - second.displayOrder));
       setActiveImageId(validImages[0]?.id ?? null);
     };
-    void loadExistingImages();
+    void loadExistingImages().catch((loadError) => { if (active) setImageLoadError(loadError.message); }).finally(() => { if (active) setImagesLoading(false); });
     return () => { active = false; };
   }, [specimen]);
 
   const submit = async (event) => {
     event.preventDefault();
     if (canManage && !categoryId) { setError('Selecione uma categoria para a espécie.'); return; }
-    if (imageDrafts.some((draft) => !draft.altText.trim()) && canPublish && form.status === 'published') { setError('Informe a descrição de cada imagem antes de publicar a espécie.'); return; }
+    if (imageDrafts.some((draft) => draft.status !== 'archived' && !draft.altText.trim()) && canPublish && form.status === 'published') { setError('Informe a descrição de cada imagem antes de publicar a espécie.'); return; }
+    if (saving || imagesLoading || imageLoadError) return;
     setSaving(true); setError('');
-    const { data: { user } } = await supabase.auth.getUser();
-    const payload = { museum_code: form.museum_code.trim() || null, scientific_name: form.scientific_name.trim(), common_name: form.common_name.trim() || null, slug: form.slug || slugify(form.scientific_name), summary: form.summary.trim() || null, description: form.description.trim() || null, geological_period: form.geological_period.trim() || null, geological_era: form.geological_era.trim() || null, geological_age: form.geological_age.trim() || null, geological_formation: form.geological_formation.trim() || null, discovery_location: form.discovery_location.trim() || null, discovery_year: form.discovery_year === '' ? null : Number(form.discovery_year), discovered_by: form.discovered_by.trim() || null, latitude: form.latitude === '' ? null : Number(form.latitude), longitude: form.longitude === '' ? null : Number(form.longitude), specimen_type: form.specimen_type.trim() || null, diet: form.diet.trim() || null, length_meters: form.length_meters === '' ? null : Number(form.length_meters), additional_info: form.additional_info.trim() || null, is_featured: Boolean(form.is_featured), status: canPublish ? form.status : 'draft' };
-    const query = specimen ? supabase.from('specimens').update(payload).eq('id', specimen.id).select().single() : supabase.from('specimens').insert({ ...payload, created_by: user.id }).select().single();
-    const { data, error: saveError } = await query;
-    if (saveError) { setSaving(false); setError(saveError.message); return; }
-    const warnings = [];
-    const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
-    const translations = { ...(data.translations ?? {}) };
-    let translationsChanged = false;
-    for (const language of foreignLanguages) {
-      const manualTranslation = Object.fromEntries(editedForeignFields[language.code].map((field) => [field, foreignForms[language.code][field]?.trim?.() ?? foreignForms[language.code][field] ?? '']));
-      try {
-        const translated = await translateSpecimen(translationRecord(data, categoryName), language.deeplTarget);
-        translations[language.code] = { ...translated, ...manualTranslation };
-        translationsChanged = true;
-      } catch (translationError) {
-        if (editedForeignFields[language.code].length) {
-          translations[language.code] = { ...(translations[language.code] ?? {}), ...manualTranslation };
+    let savedData = null;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Sua sessão expirou. Entre novamente para salvar.');
+      const payload = specimenPayload(form, canPublish);
+      const targetStatus = payload.status;
+      // Só publica depois de salvar as fotos e aprovar as pendentes.
+      if (targetStatus === 'published') payload.status = specimen?.status ?? 'draft';
+      const query = specimen ? supabase.from('specimens').update(payload).eq('id', specimen.id).select().single() : supabase.from('specimens').insert({ ...payload, created_by: user.id }).select().single();
+      const { data, error: saveError } = await query;
+      if (saveError) throw saveError;
+      savedData = data;
+      const warnings = [];
+      const categoryName = categories.find((category) => category.id === categoryId)?.name ?? '';
+      const translations = { ...(data.translations ?? {}) };
+      let translationsChanged = false;
+      for (const language of foreignLanguages) {
+        const manualTranslation = Object.fromEntries(editedForeignFields[language.code].map((field) => [field, foreignForms[language.code][field]?.trim?.() ?? foreignForms[language.code][field] ?? '']));
+        try {
+          const translated = await translateSpecimen(translationRecord(data, categoryName), language.deeplTarget);
+          translations[language.code] = { ...translated, ...manualTranslation };
           translationsChanged = true;
+        } catch (translationError) {
+          if (editedForeignFields[language.code].length) {
+            translations[language.code] = { ...(translations[language.code] ?? {}), ...manualTranslation };
+            translationsChanged = true;
+          }
+          warnings.push(`tradução em ${language.code === 'en' ? 'inglês' : 'espanhol'}: ${translationError.message}`);
         }
-        warnings.push(`tradução em ${language.code === 'en' ? 'inglês' : 'espanhol'}: ${translationError.message}`);
       }
-    }
-    if (translationsChanged) {
-      const { error: translationSaveError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
-      if (translationSaveError) warnings.push(`traduções: ${translationSaveError.message}`);
-      else data.translations = translations;
-    }
-    if (canManage) {
-      const { error: clearCategoryError } = await supabase.from('specimen_categories').delete().eq('specimen_id', data.id);
-      if (clearCategoryError) warnings.push(`categoria: ${clearCategoryError.message}`);
-      else {
-        const { error: categoryError } = await supabase.from('specimen_categories').insert({ specimen_id: data.id, category_id: categoryId, is_primary: true });
-        if (categoryError) warnings.push(`categoria: ${categoryError.message}`);
+      if (translationsChanged) {
+        const { error: translationSaveError } = await supabase.from('specimens').update({ translations }).eq('id', data.id);
+        if (translationSaveError) warnings.push(`traduções: ${translationSaveError.message}`);
+        else data.translations = translations;
       }
-    }
-    const approveMedia = canPublish && form.status === 'published';
-    const chosenCover = imageDrafts.find((draft) => draft.isCover);
-    for (const [index, draft] of removedExistingImages.entries()) {
-      try {
-        await deleteExistingSpecimenImage({ specimenId: data.id, draft });
-      } catch (mediaError) { warnings.push(`remoção da imagem ${index + 1}: ${mediaError.message}`); }
-    }
-    if (chosenCover) {
-      const { error: coverError } = await supabase.from('specimen_media').update({ purpose: 'gallery' }).eq('specimen_id', data.id).eq('purpose', 'cover');
-      if (coverError) warnings.push(`imagem de capa: ${coverError.message}`);
-      else if (chosenCover.existing) {
-        const { error: selectedCoverError } = await supabase.from('specimen_media').update({ purpose: 'cover' }).eq('specimen_id', data.id).eq('media_id', chosenCover.mediaId);
-        if (selectedCoverError) warnings.push(`imagem de capa: ${selectedCoverError.message}`);
+      if (canManage) {
+        const { error: clearCategoryError } = await supabase.from('specimen_categories').delete().eq('specimen_id', data.id);
+        if (clearCategoryError) warnings.push(`categoria: ${clearCategoryError.message}`);
+        else {
+          const { error: categoryError } = await supabase.from('specimen_categories').insert({ specimen_id: data.id, category_id: categoryId, is_primary: true });
+          if (categoryError) warnings.push(`categoria: ${categoryError.message}`);
+        }
       }
-    }
-    for (const [index, draft] of imageDrafts.filter((draft) => !draft.existing).entries()) {
-      try {
-        const catalogImage = await createCatalogImage(draft);
-        const displayOrder = imageDrafts.findIndex((image) => image.id === draft.id);
-        await uploadSpecimenFile({ specimenId: data.id, file: catalogImage, kind: 'image', altText: draft.altText.trim(), userId: user.id, approve: approveMedia, purpose: draft.isCover ? 'cover' : 'gallery', displayOrder: displayOrder < 0 ? index : displayOrder });
-      } catch (mediaError) { warnings.push(`imagem ${index + 1}: ${mediaError.message}`); }
-    }
-    if (generateQr && canManage) { try { await createQrCode({ specimenId: data.id, slug: payload.slug, userId: user.id }); } catch (qrError) { warnings.push(`QR Code: ${qrError.message}`); } }
-    setSaving(false);
-    onSaved(data, warnings);
+      let mediaFailed = false;
+      const chosenCover = imageDrafts.find((draft) => draft.isCover);
+      for (const [index, draft] of removedExistingImages.entries()) {
+        try {
+          await deleteExistingSpecimenImage({ specimenId: data.id, draft });
+        } catch (mediaError) { mediaFailed = true; warnings.push(`remoção da imagem ${index + 1}: ${mediaError.message}`); }
+      }
+      if (chosenCover) {
+        const { error: coverError } = await supabase.from('specimen_media').update({ purpose: 'gallery' }).eq('specimen_id', data.id).eq('purpose', 'cover');
+        if (coverError) { mediaFailed = true; warnings.push(`imagem de capa: ${coverError.message}`); }
+        else if (chosenCover.existing) {
+          const { error: selectedCoverError } = await supabase.from('specimen_media').update({ purpose: 'cover' }).eq('specimen_id', data.id).eq('media_id', chosenCover.mediaId);
+          if (selectedCoverError) { mediaFailed = true; warnings.push(`imagem de capa: ${selectedCoverError.message}`); }
+        }
+      }
+      for (const draft of imageDrafts.filter((image) => image.existing)) {
+        try {
+          const { error: altError } = await supabase.from('media').update({ alt_text: draft.altText.trim() || null }).eq('id', draft.mediaId);
+          if (altError) throw altError;
+        } catch (mediaError) { mediaFailed = true; warnings.push(`descrição de foto: ${mediaError.message}`); }
+      }
+      for (const [index, draft] of imageDrafts.filter((draft) => !draft.existing).entries()) {
+        try {
+          const catalogImage = await createCatalogImage(draft);
+          const displayOrder = imageDrafts.findIndex((image) => image.id === draft.id);
+          await uploadSpecimenFile({ specimenId: data.id, file: catalogImage, kind: 'image', altText: draft.altText.trim(), userId: user.id, approve: false, purpose: draft.isCover ? 'cover' : 'gallery', displayOrder: displayOrder < 0 ? index : displayOrder });
+        } catch (mediaError) { mediaFailed = true; warnings.push(`imagem ${index + 1}: ${mediaError.message}`); }
+      }
+      if (generateQr && canManage) { try { await createQrCode({ specimenId: data.id, slug: payload.slug, userId: user.id }); } catch (qrError) { warnings.push(`QR Code: ${qrError.message}`); } }
+      if (canPublish && targetStatus === 'published') {
+        if (mediaFailed) warnings.push('publicação e aprovação de fotos não concluídas: confira as pendências e salve novamente');
+        else {
+          try {
+            await approvePendingSpecimenImages(supabase, data.id, user.id);
+            const { error: publishError } = await supabase.from('specimens').update({ status: 'published' }).eq('id', data.id).select('id').single();
+            if (publishError) throw publishError;
+            data.status = 'published';
+          } catch (publishError) { warnings.push(`publicação: ${publishError.message}`); }
+        }
+      }
+      onSaved(data, warnings);
+    } catch (saveError) {
+      if (savedData) onSaved(savedData, [`algumas etapas não foram concluídas: ${saveError.message || 'reabra o cadastro para conferir'}`]);
+      else setError(saveError.message || 'Não foi possível salvar. Tente novamente.');
+    } finally { setSaving(false); }
   };
 
   const currentQrCode = getQrCode(specimen);
-  return <form className="admin-form specimen-form" onSubmit={submit}>
+  return <form className="admin-form specimen-form" onSubmit={submit} aria-busy={saving}>
+    <fieldset className="specimen-editor-fields" disabled={saving}>
     <div className="form-heading"><div><p className="eyebrow">{specimen ? 'Edição completa' : 'Novo registro'}</p><h2>{specimen ? 'Editar espécie' : 'Cadastrar espécie'}</h2></div><button type="button" className="text-button" onClick={onCancel}>Cancelar</button></div>
+    <section className="publication-controls" aria-label="Publicação da espécie">{canPublish && <label>Status do cadastro<select value={form.status} onChange={(event) => update('status', event.target.value)}>{Object.entries(specimenStatuses).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>}<div><strong>{form.status === 'published' ? 'Visível no catálogo público após salvar' : 'Fora do catálogo público'}</strong><p>Ao publicar, as fotos pendentes com descrição acessível serão aprovadas. Fotos arquivadas permanecem fora do site.</p></div><button className="button green" disabled={saving || imagesLoading || Boolean(imageLoadError)}>{saving ? 'Salvando cadastro...' : 'Salvar alterações'}</button></section>
+    {imageLoadError && <p className="form-error" role="alert">{imageLoadError}</p>}
     <div className="translation-form-columns">
       <section className="translation-form-panel">
         <div className="translation-form-heading"><h3>Português</h3><p>Informações originais da espécie.</p></div>
-    <div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label>{canPublish && <label>Status<select value={form.status} onChange={(event) => update('status', event.target.value)}><option value="draft">Rascunho</option><option value="in_review">Em revisão</option><option value="published">Publicado</option><option value="archived">Arquivado</option></select></label>}<label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div>
+    <div className="form-grid"><label>Código do museu<input value={form.museum_code} onChange={(event) => update('museum_code', event.target.value)}/></label><label>Nome científico *<input value={form.scientific_name} onChange={(event) => { update('scientific_name', event.target.value); if (!specimen) update('slug', slugify(event.target.value)); }} required/></label><label>Nome popular<input value={form.common_name} onChange={(event) => update('common_name', event.target.value)}/></label><label>Slug / URL *<input value={form.slug} onChange={(event) => update('slug', slugify(event.target.value))} required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label>{canManage && <label>Categoria *<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required><option value="">Selecione uma categoria</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>}<label>Tipo<input value={form.specimen_type} onChange={(event) => update('specimen_type', event.target.value)}/></label><label>Período geológico<input value={form.geological_period} onChange={(event) => update('geological_period', event.target.value)}/></label><label>Era geológica<input value={form.geological_era} onChange={(event) => update('geological_era', event.target.value)}/></label><label>Idade geológica<input value={form.geological_age} onChange={(event) => update('geological_age', event.target.value)}/></label><label>Formação geológica<input value={form.geological_formation} onChange={(event) => update('geological_formation', event.target.value)}/></label><label>Local da descoberta<input value={form.discovery_location} onChange={(event) => update('discovery_location', event.target.value)}/></label><label>Ano da descoberta<input type="number" min="0" max="2100" step="1" value={form.discovery_year} onChange={(event) => update('discovery_year', event.target.value)}/></label><label>Descoberto por<input value={form.discovered_by} onChange={(event) => update('discovered_by', event.target.value)}/></label><label>Latitude<input type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => update('latitude', event.target.value)}/></label><label>Longitude<input type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => update('longitude', event.target.value)}/></label><label>Dieta<input value={form.diet} onChange={(event) => update('diet', event.target.value)}/></label><label>Comprimento (metros)<input type="number" min="0" step="0.01" value={form.length_meters} onChange={(event) => update('length_meters', event.target.value)}/></label><label className="check-label"><input type="checkbox" checked={form.is_featured} onChange={(event) => update('is_featured', event.target.checked)}/> Destacar na página inicial</label><label className="full">Resumo<input value={form.summary} onChange={(event) => update('summary', event.target.value)} maxLength="280"/></label><label className="full">Descrição<textarea value={form.description} onChange={(event) => update('description', event.target.value)} rows="6"/></label><label className="full">Informações adicionais<textarea value={form.additional_info} onChange={(event) => update('additional_info', event.target.value)} rows="4"/></label></div>
       </section>
       <aside className="foreign-translation-stack">
         {foreignLanguages.map((language) => <ForeignTranslationPanel key={language.code} language={language.code} form={form} translation={foreignForms[language.code]} onChange={(field, value) => updateForeign(language.code, field, value)} />)}
       </aside>
     </div>
-    <fieldset className="asset-fieldset"><legend>Fotos da espécie</legend><p>Selecione quantas fotos desejar. Ajuste cada foto nova dentro da moldura antes de salvar: o enquadramento 4:3 será exatamente o usado no catálogo.</p><label className="upload-label">Adicionar fotos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addImages}/></label>{imageDrafts.length > 0 && <div className="image-workspace"><div className="image-draft-list">{imageDrafts.map((draft, index) => <article className={draft.id === activeImage?.id ? 'active' : ''} key={draft.id}><button type="button" onClick={() => setActiveImageId(draft.id)}><img src={draft.previewUrl} alt=""/><span>Foto {index + 1}{draft.isCover ? ' · Capa' : ''}{draft.existing ? ' · Salva' : ''}</span></button><button type="button" className="image-draft-remove" onClick={() => removeImage(draft.id)} aria-label={`Remover foto ${index + 1}`}>×</button></article>)}</div>{activeImage && (activeImage.existing ? <div className="image-editing existing-image-editing"><h3>Foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1} já salva</h3><img src={activeImage.previewUrl} alt={activeImage.altText || 'Foto cadastrada da espécie'}/><p>Esta foto já está no catálogo. Você pode removê-la ou marcá-la como capa. Para alterar o enquadramento, remova-a e envie uma nova versão.</p><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div> : <div className="image-editing"><h3>Enquadrar foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1}</h3><ImageCropEditor draft={activeImage} onChange={(changes) => updateImage(activeImage.id, changes)}/><label>Descrição acessível desta foto *<textarea rows="3" value={activeImage.altText} onChange={(event) => updateImage(activeImage.id, { altText: event.target.value })} placeholder="Descreva o que aparece nesta imagem."/></label><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div>)}</div>}<p className="helper-text">As fotos salvas aparecem aqui para consulta, definição de capa ou exclusão. A primeira foto nova é escolhida como capa automaticamente apenas quando não houver uma capa selecionada.</p></fieldset>
+    <fieldset className="asset-fieldset"><legend>Fotos da espécie</legend><p>Selecione quantas fotos desejar. Ajuste cada foto nova dentro da moldura antes de salvar: o enquadramento 4:3 será exatamente o usado no catálogo.</p><label className="upload-label">Adicionar fotos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addImages}/></label>{imageDrafts.length > 0 && <div className="image-workspace"><div className="image-draft-list">{imageDrafts.map((draft, index) => <article className={draft.id === activeImage?.id ? 'active' : ''} key={draft.id}><button type="button" onClick={() => setActiveImageId(draft.id)}><img src={draft.previewUrl} alt=""/><span>Foto {index + 1}{draft.isCover ? ' · Capa' : ''}{draft.existing ? ' · Salva' : ''}</span></button><button type="button" className="image-draft-remove" onClick={() => removeImage(draft.id)} aria-label={`Remover foto ${index + 1}`}>×</button></article>)}</div>{activeImage && (activeImage.existing ? <div className="image-editing existing-image-editing"><h3>Foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1} já salva</h3><img src={activeImage.previewUrl} alt={activeImage.altText || 'Foto cadastrada da espécie'}/><p>Esta foto já está salva. Você pode editar a descrição, removê-la ou marcá-la como capa. Para alterar o enquadramento, remova-a e envie uma nova versão.</p><label>Descrição acessível desta foto *<textarea rows="3" value={activeImage.altText} onChange={(event) => updateImage(activeImage.id, { altText: event.target.value })}/></label><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div> : <div className="image-editing"><h3>Enquadrar foto {imageDrafts.findIndex((draft) => draft.id === activeImage.id) + 1}</h3><ImageCropEditor draft={activeImage} onChange={(changes) => updateImage(activeImage.id, changes)}/><label>Descrição acessível desta foto *<textarea rows="3" value={activeImage.altText} onChange={(event) => updateImage(activeImage.id, { altText: event.target.value })} placeholder="Descreva o que aparece nesta imagem."/></label><label className="check-label"><input type="checkbox" checked={activeImage.isCover} onChange={() => selectCover(activeImage.id)}/> Usar como imagem de capa no catálogo</label></div>)}</div>}<p className="helper-text">As fotos salvas aparecem aqui para editar a descrição, definir a capa ou excluir. A primeira foto nova é escolhida como capa automaticamente apenas quando não houver uma capa selecionada.</p></fieldset>
     {canManage && <fieldset className="asset-fieldset qr-fieldset"><legend>QR Code</legend>{currentQrCode?.image_path && <p>Há um QR Code ativo (versão {currentQrCode.version}). Depois de salvar, use “Imprimir QR Code” na listagem de espécies para visualizar, imprimir ou salvar em PDF.</p>}<label className="check-label"><input type="checkbox" checked={generateQr} onChange={(event) => setGenerateQr(event.target.checked)}/> Gerar ou atualizar o QR Code desta espécie agora</label><p>Enquanto o projeto estiver local, o código apontará para a rota local. Ele deverá ser regenerado ao publicar o domínio definitivo.</p></fieldset>}
     {error && <p className="form-error" role="alert">{error}</p>}
-    <div className="form-actions"><button className="button green" disabled={saving}>{saving ? 'Salvando cadastro...' : 'Salvar espécie, fotos e QR Code'}</button></div>
+    <div className="form-actions"><button className="button green" disabled={saving || imagesLoading || Boolean(imageLoadError)}>{saving ? 'Salvando cadastro...' : imagesLoading ? 'Carregando fotos...' : 'Salvar espécie, fotos e QR Code'}</button></div>
+    </fieldset>
   </form>;
 }
 
@@ -660,6 +674,7 @@ function SpeciesManager({ roles, onCatalogChanged }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [editing, setEditing] = useState(null);
+  const [statusBusy, setStatusBusy] = useState('');
   const canDelete = roles.some((role) => rolesThatCanPublish.includes(role));
 
   const load = async () => {
@@ -670,6 +685,20 @@ function SpeciesManager({ roles, onCatalogChanged }) {
     setSpecimens(data ?? []);
   };
   useEffect(() => { load(); }, []);
+
+  const changeStatus = async (specimen) => {
+    const status = specimen.status === 'published' ? 'draft' : 'published';
+    const question = status === 'published' ? 'Publicar esta espécie e aprovar suas fotos pendentes com descrição acessível?' : 'Mover esta espécie para rascunho e retirá-la do catálogo público?';
+    if (statusBusy || !window.confirm(question)) return;
+    setStatusBusy(specimen.id); setError(''); setNotice('');
+    try {
+      await changeSpecimenStatus(supabase, specimen.id, status);
+      setNotice('Status de “' + specimen.scientific_name + '” alterado para ' + specimenStatuses[status] + '.');
+      onCatalogChanged?.();
+      await load();
+    } catch (statusError) { setError(statusError.message || 'Não foi possível alterar o status. Tente novamente.'); }
+    finally { setStatusBusy(''); }
+  };
 
   const remove = async (specimen) => {
     if (!window.confirm(`Excluir “${specimen.scientific_name}”? Esta ação não pode ser desfeita.`)) return;
@@ -703,7 +732,7 @@ function SpeciesManager({ roles, onCatalogChanged }) {
     {loading ? <SectionMessage title="Carregando espécies">Consultando os registros do catálogo.</SectionMessage> : specimens.length === 0 ? <SectionMessage title="Nenhuma espécie cadastrada">Quando receber o conteúdo validado pelo museu, cadastre o primeiro registro aqui.</SectionMessage> : <div className="data-table"><table><thead><tr><th>Espécie</th><th>Período</th><th>Inglês</th><th>Espanhol</th><th>Status</th><th>Atualização</th><th/></tr></thead><tbody>{specimens.map((specimen) => {
       const english = hasTranslation(specimen, 'en');
       const spanish = hasTranslation(specimen, 'es');
-      return <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`translation-status ${english ? 'yes' : 'no'}`}>{english ? 'Sim' : 'Não'}</span></td><td><span className={`translation-status ${spanish ? 'yes' : 'no'}`}>{spanish ? 'Sim' : 'Não'}</span></td><td><span className={`status ${specimen.status}`}>{specimen.status}</span></td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" onClick={() => setEditing(specimen)}>Editar</button>{foreignLanguages.map((language) => <button className="text-button" key={language.code} onClick={() => translate(specimen, language)}>{hasTranslation(specimen, language.code) ? `Atualizar ${language.code === 'en' ? 'inglês' : 'espanhol'}` : `Gerar ${language.code === 'en' ? 'inglês' : 'espanhol'}`}</button>)}<PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>;
+      return <tr key={specimen.id}><td><b>{specimen.scientific_name}</b><small>{specimen.common_name || specimen.slug}</small></td><td>{specimen.geological_period || '—'}</td><td><span className={`translation-status ${english ? 'yes' : 'no'}`}>{english ? 'Sim' : 'Não'}</span></td><td><span className={`translation-status ${spanish ? 'yes' : 'no'}`}>{spanish ? 'Sim' : 'Não'}</span></td><td><span className={`status ${specimen.status}`}>{specimenStatuses[specimen.status] ?? specimen.status}</span>{canDelete && <button type="button" className="status-action" disabled={Boolean(statusBusy)} onClick={() => changeStatus(specimen)}>{statusBusy === specimen.id ? 'Alterando...' : specimen.status === 'published' ? 'Mover para rascunho' : 'Publicar'}</button>}</td><td>{new Intl.DateTimeFormat('pt-BR').format(new Date(specimen.updated_at))}</td><td><button className="text-button" disabled={Boolean(statusBusy)} onClick={() => setEditing(specimen)}>Editar</button>{foreignLanguages.map((language) => <button className="text-button" key={language.code} onClick={() => translate(specimen, language)}>{hasTranslation(specimen, language.code) ? `Atualizar ${language.code === 'en' ? 'inglês' : 'espanhol'}` : `Gerar ${language.code === 'en' ? 'inglês' : 'espanhol'}`}</button>)}<PrintQrCodeButton specimen={specimen} onError={(message) => { setNotice(''); setError(message); }}/>{canDelete && <button className="text-button danger" onClick={() => remove(specimen)}>Excluir</button>}</td></tr>;
     })}</tbody></table></div>}
   </section>;
 }
