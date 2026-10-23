@@ -1,9 +1,10 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
+import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import "./dark-mode.css";
 import heroImage from "./assets/museum-hero-anuratitan-warm.png";
 import museumLogo from "./assets/museum-logo.png";
+import AudioPlayer from "./components/AudioPlayer";
 import { AdminPanel } from "./components/AdminPanel";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { installRuntimeDiagnostics } from "./services/diagnosticEvents";
@@ -405,100 +406,6 @@ function specimenNarration(specimen, language) {
   ].join(" ");
 }
 
-function AudioPlayer({ text, language }) {
-  const labels = copy[language].specimen;
-  const [status, setStatus] = useState("idle");
-  const utteranceRef = useRef(null);
-  const supported =
-    typeof window !== "undefined" &&
-    "speechSynthesis" in window &&
-    "SpeechSynthesisUtterance" in window;
-
-  useEffect(
-    () => () => {
-      utteranceRef.current = null;
-      if (supported) window.speechSynthesis.cancel();
-    },
-    [supported, text],
-  );
-
-  const play = () => {
-    if (!supported || !text) return;
-    const synth = window.speechSynthesis;
-
-    if (status === "speaking") {
-      synth.pause();
-      setStatus("paused");
-      return;
-    }
-
-    if (status === "paused") {
-      synth.resume();
-      setStatus("speaking");
-      return;
-    }
-
-    utteranceRef.current = null;
-    synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = languages[language].locale;
-    utterance.rate = 0.95;
-    const voices = synth.getVoices();
-    const voice = voices.find((item) => item.lang.toLowerCase() === utterance.lang.toLowerCase()) ?? voices.find((item) => item.lang.toLowerCase().startsWith(language));
-    if (voice) utterance.voice = voice;
-    utteranceRef.current = utterance;
-    utterance.onstart = () => {
-      if (utteranceRef.current === utterance) setStatus("speaking");
-    };
-    utterance.onend = () => {
-      if (utteranceRef.current === utterance) {
-        utteranceRef.current = null;
-        setStatus("idle");
-      }
-    };
-    utterance.onerror = () => {
-      if (utteranceRef.current === utterance) {
-        utteranceRef.current = null;
-        setStatus("error");
-      }
-    };
-    synth.speak(utterance);
-    setStatus("speaking");
-  };
-
-  const label = !supported
-    ? labels.listenUnavailable
-    : status === "speaking"
-      ? labels.pause
-      : status === "paused"
-        ? labels.continue
-        : labels.play;
-  const textLabel = !supported
-    ? labels.listenUnavailable
-    : status === "speaking"
-      ? labels.listenSpeaking
-    : status === "paused"
-        ? labels.listenPaused
-        : status === "error"
-          ? labels.listenError
-          : labels.listenIdle;
-
-  return (
-    <div className="audio">
-      <button onClick={play} disabled={!supported || !text} aria-label={label}>
-        {status === "speaking" ? "Ⅱ" : "▶"}
-      </button>
-      <span aria-live="polite">{textLabel}</span>
-      <div className="audio-line" aria-hidden="true">
-        <i className={status === "speaking" ? "playing" : ""} />
-      </div>
-      <small>
-        {supported ? labels.nativeVoice : labels.listenUnavailable}
-      </small>
-    </div>
-  );
-}
-
 function SpecimenPage({ specimen, loading, siteLanguage }) {
   const [selectedImageId, setSelectedImageId] = useState(null);
   const [language, setLanguage] = useState('pt');
@@ -605,7 +512,7 @@ function SpecimenPage({ specimen, loading, siteLanguage }) {
       <section className="listen">
         <h2>{text.listen}</h2>
         <p>{text.listenHint}</p>
-        <AudioPlayer text={narration} language={language} />
+        <AudioPlayer key={`${specimen.id}:${language}`} text={narration} language={language} />
       </section>
     </main>
   );
