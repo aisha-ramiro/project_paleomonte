@@ -4,6 +4,7 @@ import "./styles.css";
 import "./dark-mode.css";
 import heroImage from "./assets/museum-hero-anuratitan-warm.png";
 import museumLogo from "./assets/museum-logo.png";
+import AboutMuseum from "./components/AboutMuseum";
 import AudioPlayer from "./components/AudioPlayer";
 import { AdminPanel } from "./components/AdminPanel";
 import AppErrorBoundary from "./components/AppErrorBoundary";
@@ -518,37 +519,6 @@ function SpecimenPage({ specimen, loading, siteLanguage }) {
   );
 }
 
-function About({ language }) {
-  const text = copy[language].about;
-  return (
-    <main className="page">
-      <section className="about-hero">
-        <div className="shell">
-          <p className="eyebrow">{text.eyebrow}</p>
-          <h1>{text.title}</h1>
-          <p>{text.text}</p>
-        </div>
-      </section>
-      <section className="shell about-content">
-        <div>
-          <p className="eyebrow">{text.projectEyebrow}</p>
-          <h2>{text.projectTitle}</h2>
-          <p>{text.projectText}</p>
-          <p>{text.projectText2}</p>
-        </div>
-        <aside>
-          <span>⌘</span>
-          <h3>{text.visitTitle}</h3>
-          <p>{text.visitPlace}</p>
-          <a className="button green" href="#/catalogo">
-            {text.visit}
-          </a>
-        </aside>
-      </section>
-    </main>
-  );
-}
-
 function Accessibility({ language, textScale, onIncreaseText, onDecreaseText, darkMode, onToggleDarkMode }) {
   const text = copy[language].accessibility;
   const percentage = Math.round(textScale * 100);
@@ -658,7 +628,7 @@ function App() {
         siteLanguage={language}
       />
     );
-  else if (route === "/sobre") content = <About language={language} />;
+  else if (route === "/sobre") content = <AboutMuseum language={language} />;
   else if (route === "/acessibilidade") content = <Accessibility language={language} textScale={textScale} onIncreaseText={increaseText} onDecreaseText={decreaseText} darkMode={darkMode} onToggleDarkMode={toggleDarkMode} />;
   else if (route === "/admin")
     content = <AdminPanel onCatalogChanged={reload} />;
