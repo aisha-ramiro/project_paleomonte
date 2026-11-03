@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpRight, Clock3, MapPin, Phone, Mail } from 'lucide-react';
-import { museumAbout, museumPhotos, museumSources } from '../data/museumAbout';
+import { museumAbout, museumSources } from '../data/museumAbout';
+import { museumPhotos } from '../data/museumPhotos';
 
 function SourceLink({ id, text }) {
   const source = museumSources[id];
@@ -11,10 +12,10 @@ function MuseumPhoto({ photo, text, prominent = false }) {
   const [failed, setFailed] = useState(false);
   const description = text.photos[photo.id];
   return <figure className={`museum-photo museum-photo-${photo.id}`}>
-    <a href={photo.source} target="_blank" rel="noopener noreferrer" aria-label={`${description.caption} · ${text.original}`}>
+    <a href={photo.url} target="_blank" rel="noopener noreferrer" aria-label={`${description.caption} · ${text.original}`}>
       {failed ? <div className="museum-photo-unavailable">{text.unavailable}</div> : <img src={photo.url} alt={description.alt} width={photo.width} height={photo.height} loading={prominent ? 'eager' : 'lazy'} fetchPriority={prominent ? 'high' : 'auto'} decoding="async" onError={() => setFailed(true)}/>}
     </a>
-    <figcaption><strong>{description.caption}</strong><span>{text.credit}: {photo.author} · <a href={photo.source} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> · <a href={photo.licenseUrl} target="_blank" rel="noopener noreferrer">{photo.license}</a> · {text.framing}</span></figcaption>
+    <figcaption><strong>{description.caption}</strong><span>{text.photoCredit}</span></figcaption>
   </figure>;
 }
 

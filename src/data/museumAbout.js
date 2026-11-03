@@ -29,42 +29,6 @@ export const museumSources = {
   }
 };
 
-export const museumPhotos = [
-  {
-    "id": "facade",
-    "url": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Museu_de_Paleontologia_de_Monte_Alto_07.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:Museu_de_Paleontologia_de_Monte_Alto_07.jpg",
-    "width": 2048,
-    "height": 1536,
-    "author": "Marco Aurélio Esparz",
-    "date": "2010-03-18",
-    "license": "CC BY-SA 3.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
-  },
-  {
-    "id": "gallery",
-    "url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Museu_de_Paleontologia_de_Monte_Alto_08.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:Museu_de_Paleontologia_de_Monte_Alto_08.jpg",
-    "width": 2048,
-    "height": 1425,
-    "author": "Marco Aurélio Esparz",
-    "date": "2010-03-18",
-    "license": "CC BY-SA 3.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
-  },
-  {
-    "id": "fossil",
-    "url": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Baurusuchus_salgadoensis_%28MPMA%29_1.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:Baurusuchus_salgadoensis_(MPMA)_1.jpg",
-    "width": 1849,
-    "height": 1056,
-    "author": "Marco Aurélio Esparz",
-    "date": "2010-03-18",
-    "license": "CC BY-SA 3.0",
-    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
-  }
-];
-
 export const museumAbout = {
   "pt": {
     "eyebrow": "Monte Alto, São Paulo",
@@ -102,25 +66,27 @@ export const museumAbout = {
     "collectionTitle": "Vestígios de um mundo muito anterior ao nosso.",
     "collection": "O acervo reúne dinossauros, crocodiliformes, tartarugas e moluscos bivalves, com fósseis encontrados em rochas da Bacia Bauru, do período Cretáceo. Entre os exemplares apresentados pela instituição estão Arrudatitan maximus e Morrinhosuchus luziae.",
     "galleryTitle": "O museu em fotografias",
-    "galleryNote": "Registros reais de 18 de março de 2010. A organização da exposição pode ter mudado desde então.",
+    "galleryNote": "Conheça os espaços e a exposição do museu nas fotografias enviadas ao PaleoMonte.",
     "photos": {
       "facade": {
-        "alt": "Fachada do Museu de Paleontologia de Monte Alto, com escultura de dinossauro no jardim, em 2010.",
-        "caption": "Fachada e jardim do museu · 2010"
+        "alt": "Jardim do Museu de Paleontologia de Monte Alto, com esculturas de animais pré-históricos e monumento junto ao prédio.",
+        "caption": "Fachada e jardim do museu"
       },
-      "gallery": {
-        "alt": "Vista histórica do salão do museu, com vitrines de fósseis e painéis nas paredes.",
-        "caption": "Salão de exposição · 2010"
+      "mosaic": {
+        "alt": "Escultura de dinossauro de pescoço longo revestida de mosaicos, em uma passagem coberta cercada por árvores.",
+        "caption": "Dinossauro em mosaico"
       },
-      "fossil": {
-        "alt": "Crânio fóssil de Baurusuchus salgadoensis exposto no Museu de Paleontologia de Monte Alto.",
-        "caption": "Crânio de Baurusuchus salgadoensis · 2010"
+      "exhibition": {
+        "alt": "Vitrines do museu com fósseis e reconstruções de crocodiliformes diante de painéis verdes.",
+        "caption": "Fósseis e reconstruções na exposição"
+      },
+      "excavation": {
+        "alt": "Cenário de escavação no museu, com réplica de esqueleto de crocodiliforme, ferramentas e painel educativo.",
+        "caption": "Cenário educativo de escavação"
       }
     },
-    "credit": "Foto",
-    "original": "Registro original",
-    "framing": "Enquadramento de exibição",
-    "unavailable": "Foto indisponível. Consulte o registro original.",
+    "original": "Ver foto completa",
+    "unavailable": "Foto indisponível. Abra a imagem em tamanho original.",
     "missionEyebrow": "Ciência que se compartilha",
     "missionTitle": "Pesquisar, cuidar e aproximar pessoas.",
     "mission": [
@@ -169,8 +135,9 @@ export const museumAbout = {
     "projectText": "Com o PaleoMonte, você pode explorar as fichas do acervo, acessar conteúdos por QR Code, alternar entre português, inglês e espanhol e ouvir as descrições das espécies.",
     "accessibility": "Recursos de acessibilidade",
     "sourcesTitle": "Fontes e créditos",
-    "sourcesNote": "Informações consultadas em 23 de outubro de 2026. Créditos e licenças acompanham cada fotografia.",
-    "sourceLink": "Fonte"
+    "sourcesNote": "Informações institucionais consultadas em 23 de outubro de 2026. Fotografias atualizadas com imagens enviadas ao projeto em 3 de novembro de 2026.",
+    "sourceLink": "Fonte",
+    "photoCredit": "Imagem fornecida ao PaleoMonte."
   },
   "en": {
     "eyebrow": "Monte Alto, São Paulo, Brazil",
@@ -208,25 +175,27 @@ export const museumAbout = {
     "collectionTitle": "Traces of a world long before ours.",
     "collection": "The collection includes dinosaurs, crocodyliforms, turtles and bivalve molluscs, with fossils from Cretaceous rocks of the Bauru Basin. Specimens presented by the institution include Arrudatitan maximus and Morrinhosuchus luziae.",
     "galleryTitle": "The museum in photographs",
-    "galleryNote": "Real photographs taken on March 18, 2010. The exhibition layout may have changed since then.",
+    "galleryNote": "Explore the museum’s spaces and exhibits through photographs shared with PaleoMonte.",
     "photos": {
       "facade": {
-        "alt": "The Monte Alto Paleontology Museum façade, with a dinosaur sculpture in the garden, in 2010.",
-        "caption": "Museum façade and garden · 2010"
+        "alt": "Garden of the Monte Alto Paleontology Museum, with sculptures of prehistoric animals and a monument beside the building.",
+        "caption": "Museum façade and garden"
       },
-      "gallery": {
-        "alt": "Historical view of the museum hall, with fossil display cases and wall panels.",
-        "caption": "Exhibition hall · 2010"
+      "mosaic": {
+        "alt": "A long-necked dinosaur sculpture covered in mosaic tiles, in a covered walkway surrounded by trees.",
+        "caption": "Mosaic dinosaur sculpture"
       },
-      "fossil": {
-        "alt": "A fossil skull of Baurusuchus salgadoensis displayed at the Monte Alto Paleontology Museum.",
-        "caption": "Baurusuchus salgadoensis skull · 2010"
+      "exhibition": {
+        "alt": "Museum display cases with fossils and crocodyliform reconstructions in front of green information panels.",
+        "caption": "Fossils and reconstructions on display"
+      },
+      "excavation": {
+        "alt": "An excavation display at the museum, with a replica crocodyliform skeleton, tools and an educational panel.",
+        "caption": "Educational excavation display"
       }
     },
-    "credit": "Photo",
-    "original": "Original record",
-    "framing": "Framed for display",
-    "unavailable": "Photo unavailable. View the original record.",
+    "original": "View full photograph",
+    "unavailable": "Photo unavailable. Open the full-size image.",
     "missionEyebrow": "Sharing science",
     "missionTitle": "Research, care and connections.",
     "mission": [
@@ -275,8 +244,9 @@ export const museumAbout = {
     "projectText": "With PaleoMonte, you can explore collection records, open content through QR codes, switch between Portuguese, English and Spanish, and listen to specimen descriptions.",
     "accessibility": "Accessibility features",
     "sourcesTitle": "Sources and credits",
-    "sourcesNote": "Information checked on October 23, 2026. Each photograph includes its credits and licence.",
-    "sourceLink": "Source"
+    "sourcesNote": "Institutional information checked on October 23, 2026. Photographs updated with images shared with the project on November 3, 2026.",
+    "sourceLink": "Source",
+    "photoCredit": "Image supplied to PaleoMonte."
   },
   "es": {
     "eyebrow": "Monte Alto, São Paulo, Brasil",
@@ -314,25 +284,27 @@ export const museumAbout = {
     "collectionTitle": "Huellas de un mundo muy anterior al nuestro.",
     "collection": "La colección reúne dinosaurios, crocodiliformes, tortugas y moluscos bivalvos, con fósiles de las rocas cretácicas de la Cuenca Bauru. Entre los ejemplares presentados por la institución están Arrudatitan maximus y Morrinhosuchus luziae.",
     "galleryTitle": "El museo en fotografías",
-    "galleryNote": "Fotografías reales del 18 de marzo de 2010. La distribución de la exposición puede haber cambiado desde entonces.",
+    "galleryNote": "Conoce los espacios y la exposición del museo a través de las fotografías compartidas con PaleoMonte.",
     "photos": {
       "facade": {
-        "alt": "Fachada del Museo de Paleontología de Monte Alto, con una escultura de dinosaurio en el jardín, en 2010.",
-        "caption": "Fachada y jardín del museo · 2010"
+        "alt": "Jardín del Museo de Paleontología de Monte Alto, con esculturas de animales prehistóricos y un monumento junto al edificio.",
+        "caption": "Fachada y jardín del museo"
       },
-      "gallery": {
-        "alt": "Vista histórica de la sala del museo, con vitrinas de fósiles y paneles en las paredes.",
-        "caption": "Sala de exposición · 2010"
+      "mosaic": {
+        "alt": "Escultura de dinosaurio de cuello largo revestida de mosaicos, en un pasillo cubierto rodeado de árboles.",
+        "caption": "Dinosaurio en mosaico"
       },
-      "fossil": {
-        "alt": "Cráneo fósil de Baurusuchus salgadoensis expuesto en el Museo de Paleontología de Monte Alto.",
-        "caption": "Cráneo de Baurusuchus salgadoensis · 2010"
+      "exhibition": {
+        "alt": "Vitrinas del museo con fósiles y reconstrucciones de crocodiliformes frente a paneles verdes.",
+        "caption": "Fósiles y reconstrucciones en exposición"
+      },
+      "excavation": {
+        "alt": "Escenario de excavación del museo, con una réplica de esqueleto de crocodiliforme, herramientas y un panel educativo.",
+        "caption": "Escenario educativo de excavación"
       }
     },
-    "credit": "Foto",
-    "original": "Registro original",
-    "framing": "Encuadre de presentación",
-    "unavailable": "Foto no disponible. Consulta el registro original.",
+    "original": "Ver fotografía completa",
+    "unavailable": "Foto no disponible. Abre la imagen en tamaño original.",
     "missionEyebrow": "Compartir la ciencia",
     "missionTitle": "Investigar, cuidar y acercar a las personas.",
     "mission": [
@@ -381,7 +353,8 @@ export const museumAbout = {
     "projectText": "Con PaleoMonte puedes explorar las fichas de la colección, acceder a contenidos mediante códigos QR, alternar entre portugués, inglés y español y escuchar las descripciones de las especies.",
     "accessibility": "Recursos de accesibilidad",
     "sourcesTitle": "Fuentes y créditos",
-    "sourcesNote": "Información consultada el 23 de octubre de 2026. Cada fotografía incluye sus créditos y licencia.",
-    "sourceLink": "Fuente"
+    "sourcesNote": "Información institucional consultada el 23 de octubre de 2026. Fotografías actualizadas con imágenes enviadas al proyecto el 3 de noviembre de 2026.",
+    "sourceLink": "Fuente",
+    "photoCredit": "Imagen proporcionada a PaleoMonte."
   }
 };

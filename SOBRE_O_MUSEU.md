@@ -14,23 +14,26 @@ Pesquisa e conferência: **23/10/2026**. O conteúdo fica em `src/data/museumAbo
 
 Os horários publicados pela Prefeitura foram mantidos com recomendação de confirmação antes do deslocamento. O MuseusBr resume a faixa de terça a sexta sem mencionar o intervalo; a página evita interpretar isso como funcionamento ininterrupto. Não foi incluído um total de exemplares, pois não foi encontrado inventário atual que permitisse confirmar esse número.
 
-## Fotografias reais
+## Fotografias fornecidas ao projeto
 
-As três fotografias são de **Marco Aurélio Esparz**, registradas em **18/03/2010**, disponíveis no Wikimedia Commons sob **[CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)**. As páginas dos arquivos foram conferidas individualmente, incluindo licença e autoria.
+Atualização em **03/11/2026**: os três registros históricos de 2010 foram substituídos pelas **quatro imagens enviadas pelo usuário nesta conversa**, com autorização para uso na seção Sobre. Os arquivos são preservados sem edição, em `src/assets/about-museum/`, e publicados junto com o site.
 
-| Registro | Página original |
-| --- | --- |
-| Fachada e jardim | [Museu de Paleontologia de Monte Alto 07.jpg](https://commons.wikimedia.org/wiki/File:Museu_de_Paleontologia_de_Monte_Alto_07.jpg) |
-| Salão de exposição | [Museu de Paleontologia de Monte Alto 08.jpg](https://commons.wikimedia.org/wiki/File:Museu_de_Paleontologia_de_Monte_Alto_08.jpg) |
-| Crânio fóssil do acervo | [Baurusuchus salgadoensis (MPMA) 1.jpg](https://commons.wikimedia.org/wiki/File:Baurusuchus_salgadoensis_(MPMA)_1.jpg) |
+| Arquivo no projeto | Imagem enviada | Conteúdo |
+| --- | --- | --- |
+| fachada-jardim.jpg | WhatsApp Image 2026-11-03 at 15.08.41.jpeg | Fachada, jardim e esculturas |
+| dinossauro-mosaico.jpg | WhatsApp Image 2026-11-03 at 15.09.34.jpeg | Escultura em mosaico |
+| vitrines-crocodiliformes.jpg | WhatsApp Image 2026-11-03 at 15.08.14.jpeg | Vitrines com fósseis e reconstruções |
+| campo-escavacao.jpg | WhatsApp Image 2026-11-03 at 15.08.59.jpeg | Cenário educativo de escavação |
 
-Os arquivos são exibidos diretamente do Wikimedia, com enquadramento por CSS, sem edição ou substituição por imagens geradas. Cada legenda informa data, autor, origem, licença e enquadramento. A galeria identifica os registros como históricos; não sugere que retratam a disposição atual da exposição. Em caso de falha no carregamento, permanece o acesso ao registro original.
+As dimensões originais e o enquadramento completo são mantidos na apresentação, inclusive na imagem vertical. Cada imagem pode ser aberta em tamanho original. Legendas e textos alternativos estão disponíveis nos três idiomas.
+
+A data de envio não é apresentada como data de captura. Como a autoria e a licença dessas fotos não foram informadas, as legendas indicam somente “Imagem fornecida ao PaleoMonte”. Os créditos e links de licença do Wikimedia foram removidos, pois não se aplicam às novas imagens. A pesquisa institucional continua com sua data original de conferência.
 
 ## Conferência
 
 - Compilação de produção e testes existentes.
 - Navegação em português, inglês e espanhol.
-- Carregamento das três fotografias e textos alternativos.
+- Carregamento das quatro fotografias e textos alternativos.
 - Layout em computador e celular, sem rolagem horizontal.
 - Tema escuro e atalho de visitação com foco por teclado.
-- Links de mapa, telefone, e-mail, fontes e créditos.
+- Links de mapa, telefone, e-mail, fontes e imagens completas.
