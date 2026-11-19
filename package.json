@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test"
+    "test": "node --test",
+    "dev:cypress": "vite --mode cypress",
+    "cy:open": "cypress open",
+    "cy:e2e": "cypress run --e2e",
+    "cy:ct": "cypress run --component"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
@@ -19,5 +23,9 @@
     "react-easy-crop": "^6.2.3",
     "react-icons": "^5.7.0",
     "vite": "latest"
+  },
+  "devDependencies": {
+    "@testing-library/cypress": "^10.1.3",
+    "cypress": "^16.3.0"
   }
 }

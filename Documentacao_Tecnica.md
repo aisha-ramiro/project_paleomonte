@@ -30,6 +30,7 @@ A interface pública e o painel administrativo estão conectados ao Supabase. Os
 | Banco de dados e autenticação | PostgreSQL + Auth via Supabase | Dados do acervo, papéis de acesso, RLS e login administrativo. |
 | Armazenamento | Supabase Storage | Bucket privado para imagens, áudios e arquivos de QR Code. |
 | Métricas | PostgreSQL via Supabase | Contadores diários agregados de acessos do site e de espécies. |
+| Testes automatizados | Cypress e Node.js | Testes E2E e de componente em navegador; regras e serviços seguem com `node:test`. |
 | Tradução automática | DeepL API + Vercel Function | Geração protegida das versões em inglês e espanhol das fichas, sem expor a chave no navegador. |
 | Leitura em voz alta | Web Speech API (`SpeechSynthesis`) | Leitura nativa da ficha pública em português, inglês ou espanhol, sem criar arquivo de áudio. |
 
@@ -42,8 +43,10 @@ A interface pública e o painel administrativo estão conectados ao Supabase. Os
 - `@supabase/supabase-js`
 - `qrcode`
 - `react-easy-crop`
+- `cypress` (desenvolvimento)
+- `@testing-library/cypress` (desenvolvimento)
 
-Não foram utilizadas bibliotecas de componentes, CSS, ícones ou roteamento. O cliente oficial do Supabase é ativado apenas quando as variáveis de ambiente locais são preenchidas.
+As bibliotecas de teste ficam em `devDependencies`. Cypress executa os fluxos E2E e os componentes React; a suíte `node:test` continua cobrindo as regras puras e serviços existentes. Não foram adicionadas bibliotecas de componentes, CSS, ícones ou roteamento. O cliente oficial do Supabase é ativado apenas quando as variáveis de ambiente são preenchidas.
 
 ## 3. Páginas e rotas implementadas
 
@@ -143,6 +146,17 @@ PaleoMonte/
 │   │   ├── 202608310002_access_metrics.sql  # Contadores diários de acessos
 │   │   └── 202609110001_specimen_translations.sql # Traduções automáticas das fichas
 │   └── README.md                     # Instruções de implantação do Supabase
+├── cypress/
+│   ├── component/admin-help.cy.jsx  # Testes da Central de Ajuda
+│   ├── e2e/
+│   │   ├── accessibility.cy.js      # Preferências e limites de acessibilidade
+│   │   └── security-smoke.cy.js      # Fallback administrativo e busca como texto
+│   └── support/
+│       ├── component.js
+│       └── e2e.js
+├── cypress.config.js               # Configuração E2E e React/Vite Component Testing
+├── tests/                           # Testes de regras e serviços com node:test
+├── .env.cypress                     # Ambiente local sem integração Supabase
 ├── .env.example                      # Modelo seguro de variáveis de ambiente
 ├── index.html                       # Documento HTML de entrada
 ├── package.json                     # Scripts e dependências do projeto
@@ -193,6 +207,27 @@ npm run build
 ```
 
 Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
+
+### Testes automatizados
+
+A suíte Node existente é executada com `npm test`. Cypress acrescenta quatro cenários E2E e dois testes de componente descritos em `cypress/`.
+
+Para os testes E2E, use duas janelas de terminal:
+
+```bash
+npm run dev:cypress
+npm run cy:e2e
+```
+
+O primeiro comando inicia o Vite com o modo `cypress`, usando o arquivo versionado `.env.cypress` com as variáveis do Supabase vazias. Execute o segundo comando em outro terminal. As variáveis `VITE_SUPABASE_*` definidas diretamente no ambiente do sistema têm prioridade sobre os arquivos do Vite; para validar o fallback administrativo, mantenha-as sem valor.
+
+Os testes de componente montam `AdminHelp` com Cypress e Vite:
+
+```bash
+npm run cy:ct
+```
+
+Para abrir o Cypress interativo, use `npm run cy:open`. Os arquivos locais `cypress.env.json` e `.env.local` não devem conter credenciais de produção; o primeiro está ignorado pelo Git. A suíte atual não acessa o Supabase nem testa login autenticado, RLS, armazenamento de mídias ou CRUD administrativo. Esses casos dependem de um projeto Supabase de teste isolado e continuam fora desta execução.
 
 ## 8. Repositório remoto
 
@@ -418,6 +453,14 @@ Os arquivos gerados ficam na pasta `dist/`, que não é enviada ao GitHub.
 - Convites novos passam a marcar o primeiro acesso e o painel exige a definição da senha antes de liberar o conteúdo administrativo.
 - Documentadas as URLs de redirecionamento necessárias em **Authentication → URL Configuration**. A Edge Function precisa ser publicada novamente para que os próximos convites usem este fluxo.
 - Aprimorada a exibição de erros das Edge Functions no painel, para que falhas de envio, configuração de redirecionamento ou atribuição de nível sejam identificadas diretamente na interface.
+
+### 2026-11-19 — Suíte de testes Cypress
+
+- Adicionados Cypress 16.3.0 e `@testing-library/cypress` como dependências de desenvolvimento, com versões registradas em `package-lock.json`.
+- Configurados os modos E2E e Component Testing para React com Vite, além dos scripts `cy:open`, `cy:e2e`, `cy:ct` e `dev:cypress`.
+- Incluídos quatro cenários E2E de interface e dois testes da Central de Ajuda, alinhados aos casos registrados em `PALEOMONTE_Consolidado.docx`.
+- Mantida a suíte `node:test` existente. `.env.cypress` usa valores vazios para isolar o fallback sem Supabase; `cypress.env.json` permanece ignorado.
+- Os casos autenticados, a verificação real de RLS e fluxos administrativos com dados continuam pendentes de um Supabase de teste isolado. A execução documentada anteriormente no consolidado é uma referência de cenário; os testes deste branch precisam ser executados para registrar resultados próprios.
 
 ### Próxima atualização
 
