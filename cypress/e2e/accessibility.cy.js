@@ -4,6 +4,7 @@ describe("Preferências de acessibilidade", () => {
   });
 
   it("mantém o tema escuro e o tamanho do texto após recarregar", () => {
+    cy.get(".text-scale-status").should("have.text", "100%");
     cy.get(".access-controls")
       .contains("button", "Aumentar texto")
       .click();
@@ -20,6 +21,7 @@ describe("Preferências de acessibilidade", () => {
   });
 
   it("respeita os limites mínimo e máximo da escala de texto", () => {
+    cy.get(".text-scale-status").should("have.text", "100%");
     cy.get(".access-controls")
       .contains("button", "Diminuir texto")
       .click();

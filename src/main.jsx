@@ -571,7 +571,10 @@ const MAX_TEXT_SCALE = 1.2;
 const TEXT_SCALE_STEP = 0.1;
 
 function readTextScale() {
-  const savedScale = Number(window.localStorage.getItem(TEXT_SCALE_STORAGE_KEY));
+  const storedScale = window.localStorage.getItem(TEXT_SCALE_STORAGE_KEY);
+  if (storedScale === null) return 1;
+
+  const savedScale = Number(storedScale);
   return Number.isFinite(savedScale)
     ? Math.min(MAX_TEXT_SCALE, Math.max(MIN_TEXT_SCALE, savedScale))
     : 1;
