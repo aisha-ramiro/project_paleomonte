@@ -9,8 +9,12 @@ vite-server.log
 .env
 .env.*
 !.env.example
+!.env.cypress
 
 # Arquivos do sistema e editor
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Configuração local do Cypress
+cypress.env.json
